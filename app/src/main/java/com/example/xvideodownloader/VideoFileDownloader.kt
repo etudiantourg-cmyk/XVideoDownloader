@@ -104,7 +104,7 @@ object VideoFileDownloader {
                 input.use { source ->
                     output.use { destination -> source.copyTo(destination, 64 * 1024) }
                 }
-                connection.disconnect()
+                activeConnection.disconnect()
 
                 val done = ContentValues().apply { put(MediaStore.MediaColumns.IS_PENDING, 0) }
                 context.contentResolver.update(outputUri!!, done, null, null)
