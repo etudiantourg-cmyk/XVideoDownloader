@@ -35,6 +35,7 @@ import kotlin.concurrent.thread
 class FloatingService : Service() {
     private lateinit var windowManager: WindowManager
     private var bubble: View? = null
+    private var trashTarget: View? = null
     private val mainHandler = Handler(Looper.getMainLooper())
     private var panel: PopupWindow? = null
 
@@ -92,7 +93,7 @@ class FloatingService : Service() {
             elevation = 14f
             contentDescription = "اضغط لتنزيل فيديو X"
         }
-        val bubbleSize = (76 * resources.displayMetrics.density).toInt()
+        val bubbleSize = (84 * resources.displayMetrics.density).toInt()
         val params = WindowManager.LayoutParams(
             bubbleSize, bubbleSize, overlayType(),
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
@@ -123,10 +124,16 @@ class FloatingService : Service() {
                         params.x = (originalX - dx).coerceAtLeast(0)
                         params.y = (originalY + dy).coerceAtLeast(0)
                         try { windowManager.updateViewLayout(button, params) } catch (_: Exception) {}
+                        if (dragged) showTrashTarget()
                         return true
                     }
                     MotionEvent.ACTION_UP -> {
-                        if (!dragged) onBubbleTapped()
+                        if (dragged && isOverTrash(event.rawX, event.rawY)) {
+                            removeBubbleByDrop()
+                        } else {
+                            hideTrashTarget()
+                            if (!dragged) onBubbleTapped()
+                        }
                         return true
                     }
                 }
@@ -137,6 +144,53 @@ class FloatingService : Service() {
         windowManager.addView(button, params)
     }
 
+    /** Display a trash target while dragging the floating button. */
+    private fun showTrashTarget() {
+        if (trashTarget != null) return
+        val size = (72 * resources.displayMetrics.density).toInt()
+        val target = TextView(this).apply {
+            text = "🗑"
+            textSize = 30f
+            gravity = Gravity.CENTER
+            setTextColor(Color.WHITE)
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(0xFFE11D48.toInt())
+                setStroke((2 * resources.displayMetrics.density).toInt(), Color.WHITE)
+            }
+            elevation = 16f
+            contentDescription = "اسحب هنا لإخفاء الزر العائم"
+        }
+        val targetParams = WindowManager.LayoutParams(
+            size, size, overlayType(),
+            WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE,
+            PixelFormat.TRANSLUCENT
+        ).apply {
+            gravity = Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL
+            y = (42 * resources.displayMetrics.density).toInt()
+        }
+        try { windowManager.addView(target, targetParams); trashTarget = target } catch (_: Exception) { trashTarget = null }
+    }
+
+    private fun hideTrashTarget() {
+        trashTarget?.let { try { windowManager.removeView(it) } catch (_: Exception) {} }
+        trashTarget = null
+    }
+
+    private fun isOverTrash(rawX: Float, rawY: Float): Boolean {
+        val density = resources.displayMetrics.density
+        val width = resources.displayMetrics.widthPixels.toFloat()
+        val height = resources.displayMetrics.heightPixels.toFloat()
+        return kotlin.math.abs(rawX - width / 2f) <= 76f * density && rawY >= height - 150f * density
+    }
+
+    private fun removeBubbleByDrop() {
+        hideTrashTarget()
+        bubble?.let { try { windowManager.removeView(it) } catch (_: Exception) {} }
+        bubble = null
+        Toast.makeText(this, "تم إخفاء الزر العائم. يمكنك تشغيله مجدداً من التطبيق.", Toast.LENGTH_LONG).show()
+        stopSelf()
+    }
     /** One-tap flow: copy the X post link using Share > Copy link, then tap the floating button. */
     private fun onBubbleTapped() {
         val clipboard = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
@@ -366,6 +420,7 @@ class FloatingService : Service() {
 
     override fun onDestroy() {
         try { panel?.dismiss() } catch (_: Exception) {}
+        hideTrashTarget()
         bubble?.let { try { windowManager.removeView(it) } catch (_: Exception) {} }
         bubble = null
         super.onDestroy()
