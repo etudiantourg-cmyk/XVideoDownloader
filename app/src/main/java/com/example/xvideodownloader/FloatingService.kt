@@ -26,6 +26,7 @@ import android.widget.EditText
 import android.widget.LinearLayout
 import android.widget.PopupWindow
 import android.widget.TextView
+import android.widget.Toast
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
@@ -79,19 +80,21 @@ class FloatingService : Service() {
     private fun showBubble() {
         if (bubble != null) return
         val button = TextView(this).apply {
-            text = "X"
-            textSize = 21f
+            text = "⬇"
+            textSize = 30f
             setTextColor(Color.WHITE)
             gravity = Gravity.CENTER
             background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
-                setColor(0xFF111827.toInt())
-                setStroke(3, 0xFF38BDF8.toInt())
+                setColor(0xFF0284C7.toInt())
+                setStroke(3, Color.WHITE)
             }
-            elevation = 10f
+            elevation = 14f
+            contentDescription = "اضغط لتنزيل فيديو X"
         }
+        val bubbleSize = (76 * resources.displayMetrics.density).toInt()
         val params = WindowManager.LayoutParams(
-            60, 60, overlayType(),
+            bubbleSize, bubbleSize, overlayType(),
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
             PixelFormat.TRANSLUCENT
         ).apply {
@@ -123,7 +126,7 @@ class FloatingService : Service() {
                         return true
                     }
                     MotionEvent.ACTION_UP -> {
-                        if (!dragged) showPanel()
+                        if (!dragged) onBubbleTapped()
                         return true
                     }
                 }
@@ -134,6 +137,36 @@ class FloatingService : Service() {
         windowManager.addView(button, params)
     }
 
+    /** One-tap flow: copy the X post link using Share > Copy link, then tap the floating button. */
+    private fun onBubbleTapped() {
+        val clipboard = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
+        val copiedText = try {
+            if (clipboard.hasPrimaryClip()) clipboard.primaryClip?.getItemAt(0)?.coerceToText(this)?.toString().orEmpty() else ""
+        } catch (_: Exception) { "" }
+        val postId = extractStatusId(copiedText)
+        if (postId == null) {
+            Toast.makeText(this, "في X اختر مشاركة المنشور ثم نسخ الرابط، وبعدها اضغط زر التنزيل.", Toast.LENGTH_LONG).show()
+            showPanel()
+            return
+        }
+        Toast.makeText(this, "جارٍ استخراج الفيديو...", Toast.LENGTH_SHORT).show()
+        resolveVideo(postId) { result ->
+            when (result) {
+                is ResolveResult.Error -> Toast.makeText(this, result.message, Toast.LENGTH_LONG).show()
+                is ResolveResult.Success -> {
+                    val best = result.formats.maxWithOrNull(compareBy<VideoFormat> { it.height }.thenBy { it.bitrate })
+                    if (best == null) {
+                        Toast.makeText(this, "لم نعثر على جودة قابلة للتنزيل.", Toast.LENGTH_LONG).show()
+                    } else {
+                        Toast.makeText(this, "بدء تنزيل ${best.height}p...", Toast.LENGTH_SHORT).show()
+                        VideoFileDownloader.download(this, best.url, "X_${postId}_${best.height}p.mp4", "https://x.com/i/status/$postId") { success, message ->
+                            mainHandler.post { Toast.makeText(this, message, Toast.LENGTH_LONG).show() }
+                        }
+                    }
+                }
+            }
+        }
+    }
     private fun showPanel() {
         if (panel?.isShowing == true) return
         val box = LinearLayout(this).apply {
