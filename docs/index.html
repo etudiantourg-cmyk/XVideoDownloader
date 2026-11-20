@@ -1,28 +1,168 @@
 <!doctype html>
 <html lang="ar" dir="rtl">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="theme-color" content="#101827"><meta name="description" content="تنزيل الفيديوهات العامة من منشورات X بسهولة">
-<link rel="manifest" href="./manifest.webmanifest"><meta name="mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-capable" content="yes"><meta name="apple-mobile-web-app-title" content="X Downloader"><link rel="icon" href="./icon.svg" type="image/svg+xml">
-<title>X Video Downloader</title>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#101827">
+<meta name="description" content="تنزيل الفيديوهات العامة من منشورات X بسهولة">
+<link rel="manifest" href="./manifest.webmanifest">
+<link rel="icon" href="./icon.svg" type="image/svg+xml">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="X Downloader">
+<title>منزّل فيديوهات X</title>
 <style>
-:root{color-scheme:dark;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}*{box-sizing:border-box}body{margin:0;background:linear-gradient(145deg,#0b1220,#14243b);color:#f8fafc;min-height:100vh;display:grid;place-items:center;padding:20px}.card{width:min(100%,520px);background:#172338;border:1px solid #33445e;border-radius:26px;padding:26px;box-shadow:0 24px 70px #0006}.logo{width:62px;height:62px;border-radius:20px;background:#0ea5e9;display:grid;place-items:center;font-size:30px;font-weight:900;margin-bottom:18px}h1{font-size:27px;margin:0 0 8px}p{color:#bac8d9;line-height:1.7}.field{display:flex;gap:8px;margin:22px 0 12px;flex-direction:column}input{width:100%;padding:16px;border-radius:14px;border:1px solid #52647d;background:#0c1728;color:white;font-size:16px;direction:ltr;text-align:left}button,.button{border:0;border-radius:14px;padding:15px 18px;background:#0ea5e9;color:#00111d;font-weight:800;font-size:16px;cursor:pointer;text-decoration:none;display:block;text-align:center;width:100%;margin-top:10px}.secondary{background:#263a54;color:#f8fafc}.status{min-height:28px;color:#7dd3fc;font-size:14px}.quality{display:flex;gap:8px;flex-wrap:wrap}.quality button{width:auto;flex:1;min-width:100px}.install{background:#22c55e;color:#052e16}.install:disabled{opacity:.65}.note{font-size:12px;color:#91a3ba;border-top:1px solid #33445e;padding-top:16px;margin-top:20px}
-</style></head>
-<body><main class="card">
-<div class="logo">X</div><h1>منزّل فيديوهات X</h1>
-<p>ضع رابط منشور عام يحتوي على فيديو، اختر الجودة، ثم ابدأ التنزيل.</p>
-<div class="field"><input id="post" type="url" placeholder="https://x.com/username/status/..." autocomplete="url"><button id="go">استخراج الفيديو</button></div>
-<div id="status" class="status" role="status"></div><div id="formats" class="quality"></div>
-<button class="secondary" id="float" type="button">تشغيل الأيقونة العائمة (داخل تطبيق Android)</button>
-<a class="button secondary" href="https://github.com/etudiantourg-cmyk/XVideoDownloader/actions" target="_blank" rel="noopener">الحصول على تطبيق Android APK</a>
-<p class="note">ملاحظة: تثبيت الموقع على الشاشة الرئيسية لا يمنحه صلاحية الظهور فوق التطبيقات. الأيقونة العائمة تحتاج تطبيق Android المصاحب. التنزيل للمنشورات العامة فقط، واحترم حقوق أصحاب المحتوى.</p>
+:root{color-scheme:dark;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
+*{box-sizing:border-box}
+body{margin:0;background:linear-gradient(145deg,#0b1220,#14243b);color:#f8fafc;min-height:100vh;display:grid;place-items:center;padding:18px}
+.card{width:min(100%,520px);background:#172338;border:1px solid #33445e;border-radius:24px;padding:24px;box-shadow:0 24px 70px #0006}
+.logo{width:58px;height:58px;border-radius:18px;background:#0ea5e9;display:grid;place-items:center;font-size:30px;font-weight:900;margin-bottom:16px}
+h1{font-size:25px;margin:0 0 8px}
+p{color:#bac8d9;line-height:1.7}
+input{width:100%;padding:15px;border-radius:13px;border:1px solid #52647d;background:#0c1728;color:white;font-size:16px;direction:ltr;text-align:left;margin:12px 0}
+button,.download{border:0;border-radius:13px;padding:15px 18px;background:#0ea5e9;color:#00111d;font-weight:800;font-size:16px;cursor:pointer;text-decoration:none;display:block;text-align:center;width:100%;margin-top:10px}
+button:disabled{opacity:.55}
+.secondary{background:#263a54;color:#f8fafc}
+.status{min-height:32px;color:#7dd3fc;font-size:14px;margin-top:12px}
+.quality{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.quality button{margin:0}
+.note{font-size:12px;color:#91a3ba;border-top:1px solid #33445e;padding-top:15px;margin-top:20px}
+</style>
+</head>
+<body>
+<main class="card">
+<div class="logo">X</div>
+<h1>منزّل فيديوهات X</h1>
+<p>الصق رابط منشور عام يحتوي على فيديو، ثم اختر الجودة لتنزيله.</p>
+<input id="post" type="url" placeholder="https://x.com/username/status/..." autocomplete="url" inputmode="url">
+<button id="go" type="button">استخراج الفيديو</button>
+<div id="status" class="status" role="status" aria-live="polite"></div>
+<div id="formats" class="quality"></div>
+<button id="install" class="secondary" type="button" hidden>تثبيت التطبيق على الهاتف</button>
+<p id="installHelp" class="status"></p>
+<p class="note">يعمل مع المنشورات العامة فقط. إذا فتح الفيديو بدلاً من تنزيله: اضغط ⋮ في مشغّل Chrome واختر «تنزيل». قد لا تعمل الروابط الخاصة أو المحذوفة.</p>
 </main>
 <script>
-const $=id=>document.getElementById(id), state=$("status"), list=$("formats");\nlet installPrompt=null;\nwindow.addEventListener("beforeinstallprompt",e=>{e.preventDefault();installPrompt=e;});\n$("install").onclick=async()=>{if(installPrompt){installPrompt.prompt();const choice=await installPrompt.userChoice;$("installHelp").textContent=choice.outcome==="accepted"?"بدأ تثبيت التطبيق.":"يمكنك تثبيته لاحقاً من قائمة Chrome.";installPrompt=null;}else{$("installHelp").textContent="افتح قائمة Chrome ⋮ ثم اختر «إضافة إلى الشاشة الرئيسية» أو «تثبيت التطبيق». إذا لم يظهر الخيار، افتح الرابط في Chrome مباشرة وتأكد من اتصال الإنترنت.";}};
-function getId(v){try{const u=new URL(v);if(!/(^|\\.)((x|twitter)\\.com)$/.test(u.hostname))return null;return u.pathname.match(/\\/status\\/(\\d+)/)?.[1]||null}catch{return null}}
-$("go").onclick=async()=>{list.innerHTML="";const id=getId($("post").value.trim());if(!id){state.textContent="أدخل رابط منشور صحيحاً من X أو Twitter.";return}state.textContent="جارٍ البحث عن الفيديوهات المتاحة…";$("go").disabled=true;try{const res=await fetch("https://api.fxtwitter.com/2/status/"+id,{headers:{Accept:"application/json"}});if(!res.ok)throw Error("HTTP "+res.status);const data=await res.json();const videos=data?.status?.media?.videos||[];const formats=videos.flatMap(v=>v.formats||[]).filter(f=>{try{const u=new URL(f.url);return u.protocol==="https:"&&(u.hostname==="video.twimg.com"||u.hostname.endsWith(".video.twimg.com"))&&(f.container==="mp4"||u.pathname.toLowerCase().endsWith(".mp4"))}catch{return false}});const unique=[...new Map(formats.map(f=>[f.url,f])).values()].sort((a,b)=>(b.height||0)-(a.height||0));if(!unique.length)throw Error("لم نعثر على MP4. قد يكون المنشور خاصاً أو لا يحتوي على فيديو قابل للتنزيل.");state.textContent="اختر الجودة المناسبة:";unique.forEach((f,i)=>{const b=document.createElement("button");b.textContent=(f.height||"—")+"p MP4";b.onclick=()=>download(f.url,"X_video_"+id+".mp4");list.appendChild(b)});}catch(e){state.textContent=e.message.includes("Failed to fetch")?"تعذر الاتصال من المتصفح. جرّب الأيقونة العائمة داخل تطبيق Android.":e.message}finally{$("go").disabled=false}};
-function download(url,name){if(window.AndroidDownloader&&AndroidDownloader.downloadVideo){AndroidDownloader.downloadVideo(url,name);state.textContent="بدأ التنزيل على الهاتف."}else{const a=document.createElement("a");a.href=url;a.download=name;a.rel="noopener";document.body.appendChild(a);a.click();a.remove();state.textContent="إذا لم يبدأ التنزيل، افتح الرابط في المتصفح."}}
+"use strict";
+const el = id => document.getElementById(id);
+const statusBox = el("status");
+const formatBox = el("formats");
+let installPrompt = null;
 
-if("serviceWorker" in navigator)window.addEventListener("load",()=>navigator.serviceWorker.register("./sw.js").catch(()=>{}));
-if(location.search.includes("url="))$("post").value=new URLSearchParams(location.search).get("url");
-</script></body></html>
+function extractId(value) {
+  try {
+    const url = new URL(value);
+    const host = url.hostname.toLowerCase().replace(/^www\./, "");
+    if (host !== "x.com" && host !== "twitter.com" && host !== "mobile.twitter.com") return null;
+    const match = url.pathname.match(/\/status\/(\d+)/);
+    return match ? match[1] : null;
+  } catch (_) { return null; }
+}
+
+function showError(message) {
+  statusBox.textContent = message;
+  formatBox.replaceChildren();
+}
+
+async function findVideos() {
+  formatBox.replaceChildren();
+  const id = extractId(el("post").value.trim());
+  if (!id) {
+    showError("الرابط غير صحيح. انسخ رابط المنشور من X كاملاً.");
+    return;
+  }
+  el("go").disabled = true;
+  statusBox.textContent = "جارٍ جلب بيانات المنشور…";
+  try {
+    const response = await fetch("https://api.fxtwitter.com/2/status/" + encodeURIComponent(id), {
+      method: "GET",
+      headers: { "Accept": "application/json" },
+      cache: "no-store"
+    });
+    const data = await response.json();
+    if (!response.ok || (data.code && data.code >= 400)) {
+      throw new Error("تعذر جلب المنشور. تأكد أنه عام وأن الرابط صحيح.");
+    }
+    const media = data && data.status && data.status.media;
+    const videos = media && Array.isArray(media.videos) ? media.videos : [];
+    const choices = [];
+    for (const video of videos) {
+      for (const item of (Array.isArray(video.formats) ? video.formats : [])) {
+        if (!item || item.container !== "mp4" || !item.url) continue;
+        try {
+          const u = new URL(item.url);
+          if (u.protocol === "https:" && (u.hostname === "video.twimg.com" || u.hostname.endsWith(".video.twimg.com"))) {
+            choices.push({ url: u.href, height: Number(item.height || video.height || 0), bitrate: Number(item.bitrate || 0) });
+          }
+        } catch (_) {}
+      }
+    }
+    const unique = [...new Map(choices.map(x => [x.url, x])).values()]
+      .sort((a,b) => b.height - a.height || b.bitrate - a.bitrate);
+    if (!unique.length) {
+      throw new Error("لم نجد ملف MP4 لهذا المنشور. قد لا يحتوي على فيديو، أو قد يكون خاصاً أو محذوفاً.");
+    }
+    statusBox.textContent = "وجدنا " + unique.length + " خياراً. اضغط الجودة المطلوبة:";
+    unique.forEach((item, index) => {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.textContent = (item.height ? item.height + "p" : "جودة " + (index + 1)) + " — تنزيل";
+      button.addEventListener("click", () => downloadVideo(item.url, "X_video_" + id + ".mp4"));
+      formatBox.appendChild(button);
+    });
+  } catch (error) {
+    showError(error && error.message ? error.message : "حدث خطأ أثناء استخراج الفيديو. حاول مجدداً.");
+  } finally {
+    el("go").disabled = false;
+  }
+}
+
+async function downloadVideo(url, filename) {
+  statusBox.textContent = "جارٍ تجهيز التنزيل…";
+  try {
+    const response = await fetch(url, { mode: "cors" });
+    if (!response.ok) throw new Error("download failed");
+    const blob = await response.blob();
+    if (!blob.size) throw new Error("empty file");
+    const objectUrl = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = objectUrl;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(objectUrl), 60000);
+    statusBox.textContent = "بدأ تنزيل الفيديو. تحقق من إشعارات التنزيلات.";
+  } catch (_) {
+    statusBox.textContent = "المتصفح منع التنزيل المباشر؛ فتحنا ملف MP4. اضغط ⋮ في Chrome ثم «تنزيل».";
+    window.open(url, "_blank", "noopener");
+  }
+}
+
+el("go").addEventListener("click", findVideos);
+el("post").addEventListener("keydown", event => { if (event.key === "Enter") findVideos(); });
+
+window.addEventListener("beforeinstallprompt", event => {
+  event.preventDefault();
+  installPrompt = event;
+  el("install").hidden = false;
+});
+el("install").addEventListener("click", async () => {
+  if (!installPrompt) {
+    el("installHelp").textContent = "من قائمة Chrome ⋮ اختر «إضافة إلى الشاشة الرئيسية».";
+    return;
+  }
+  installPrompt.prompt();
+  await installPrompt.userChoice;
+  installPrompt = null;
+  el("install").hidden = true;
+});
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => navigator.serviceWorker.register("./sw.js").catch(() => {}));
+}
+const sharedUrl = new URLSearchParams(location.search).get("url");
+if (sharedUrl) el("post").value = sharedUrl;
+</script>
+</body>
+</html>
