@@ -27,5 +27,6 @@ jobs:
       - uses: actions/upload-pages-artifact@v3
         with:
           path: docs
+          retention-days: 2
       - id: deployment
         uses: actions/deploy-pages@v4
