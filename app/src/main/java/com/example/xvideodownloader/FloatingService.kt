@@ -285,8 +285,9 @@ class FloatingService : Service() {
                 setTitle("X video $statusId")
                 setDescription("جارٍ تنزيل الفيديو")
                 setMimeType("video/mp4")
-                setAllowedOverMetered(true)
+                if (Build.VERSION.SDK_INT >= 24) setAllowedOverMetered(true)
                 setAllowedOverRoaming(false)
+                addRequestHeader("User-Agent", "Mozilla/5.0 (Linux; Android) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36")
                 setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
                 setDestinationInExternalPublicDir(
                     Environment.DIRECTORY_MOVIES,
