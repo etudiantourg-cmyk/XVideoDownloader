@@ -50,7 +50,8 @@ object VideoFileDownloader {
                     // video.twimg.com URLs are signed and can expire. Re-resolve the
                     // post to obtain a fresh URL, then retry exactly once.
                     val statusId = Regex("(?:x|X)_(\\d+)_").find(fileName)?.groupValues?.get(1).orEmpty()
-                    val refreshed = if (statusId.isNotEmpty()) refreshMediaUrl(statusId, initialUri) else null
+                    val desiredHeight = Regex("_(\\d+)p\\.mp4$", RegexOption.IGNORE_CASE).find(fileName)?.groupValues?.get(1)?.toIntOrNull() ?: 0
+                    val refreshed = if (statusId.isNotEmpty()) refreshMediaUrl(statusId, desiredHeight) else null
                     if (refreshed != null && refreshed != currentUrl) {
                         currentUrl = refreshed
                         result = openMedia(currentUrl)
@@ -137,7 +138,7 @@ object VideoFileDownloader {
     }
 
     /** Obtain a new signed MP4 URL from the public FxTwitter API. */
-    private fun refreshMediaUrl(statusId: String, oldUri: Uri): String? {
+    private fun refreshMediaUrl(statusId: String, desiredHeight: Int): String? {
         return try {
             val connection = (URL("https://api.fxtwitter.com/2/status/$statusId").openConnection() as HttpURLConnection).apply {
                 connectTimeout = 15000
@@ -172,7 +173,7 @@ object VideoFileDownloader {
                 }
             }
             candidates.distinctBy { it.first }
-                .sortedWith(compareBy<Pair<String, Int>> { kotlin.math.abs(it.second - oldUri.getQueryParameter("tag")?.toIntOrNull().orZero()) }
+                .sortedWith(compareBy<Pair<String, Int>> { if (desiredHeight > 0) kotlin.math.abs(it.second - desiredHeight) else 0 }
                     .thenByDescending { it.second })
                 .firstOrNull()?.first
         } catch (_: Exception) {
@@ -180,7 +181,6 @@ object VideoFileDownloader {
         }
     }
 
-    private fun Int?.orZero(): Int = this ?: 0
 
     private const val USER_AGENT =
         "Mozilla/5.0 (Linux; Android 10; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Mobile Safari/537.36"
