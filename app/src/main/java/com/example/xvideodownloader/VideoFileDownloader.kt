@@ -47,36 +47,45 @@ object VideoFileDownloader {
                     return@Thread
                 }
 
-                val connection = (URL(videoUrl).openConnection() as HttpURLConnection).apply {
-                    requestMethod = "GET"
-                    connectTimeout = 20000
-                    readTimeout = 30000
-                    instanceFollowRedirects = true
-                    useCaches = false
-                    setRequestProperty("User-Agent", USER_AGENT)
-                    setRequestProperty("Referer", referer)
-                    setRequestProperty("Origin", "https://x.com")
-                    setRequestProperty("Accept", "*/*")
-                    setRequestProperty("Accept-Encoding", "identity")
-                    setRequestProperty("Connection", "close")
-                }
-
-                val code = connection.responseCode
-                if (code !in 200..299) {
-                    val detail = try {
-                        (connection.errorStream?.bufferedReader()?.use { it.readText() } ?: "")
+                // X's media CDN can reject a status-page Referer. Retry with the
+                // canonical site root and finally without Referer; no cookies are used.
+                val refererCandidates = listOf("https://x.com/", "https://twitter.com/", "")
+                var connection: HttpURLConnection? = null
+                var code = -1
+                var lastDetail = ""
+                for (candidate in refererCandidates) {
+                    val attempt = (URL(videoUrl).openConnection() as HttpURLConnection).apply {
+                        requestMethod = "GET"
+                        connectTimeout = 20000
+                        readTimeout = 30000
+                        instanceFollowRedirects = true
+                        useCaches = false
+                        setRequestProperty("User-Agent", USER_AGENT)
+                        if (candidate.isNotEmpty()) setRequestProperty("Referer", candidate)
+                        setRequestProperty("Accept", "*/*")
+                        setRequestProperty("Accept-Encoding", "identity")
+                        setRequestProperty("Connection", "close")
+                    }
+                    code = attempt.responseCode
+                    if (code in 200..299) {
+                        connection = attempt
+                        break
+                    }
+                    lastDetail = try {
+                        (attempt.errorStream?.bufferedReader()?.use { it.readText() } ?: "")
                             .replace(Regex("\\s+"), " ").take(180)
                     } catch (_: Exception) { "" }
-                    connection.disconnect()
-                    throw Exception(
-                        if (code == 403) "رفض خادم X الوصول إلى ملف الفيديو (HTTP 403). الرابط أو صلاحية الوصول غير مقبولين من الخادم."
-                        else "فشل تنزيل الفيديو: HTTP $code. $detail"
-                    )
+                    attempt.disconnect()
+                    if (code != 403) break
                 }
+                val activeConnection = connection ?: throw Exception(
+                    if (code == 403) "رفض CDN الوصول حتى بعد تجربة Referer بديل وطلب بلا Referer (HTTP 403). قد يكون رابط الفيديو منتهي الصلاحية أو محجوباً من X."
+                    else "فشل تنزيل الفيديو: HTTP $code. $lastDetail"
+                )
 
-                val contentType = connection.contentType?.substringBefore(";")?.lowercase().orEmpty()
+                val contentType = activeConnection.contentType?.substringBefore(";")?.lowercase().orEmpty()
                 if (contentType.isNotEmpty() && !contentType.startsWith("video/") && contentType != "application/octet-stream") {
-                    connection.disconnect()
+                    activeConnection.disconnect()
                     throw Exception("الخادم لم يُرجع ملف فيديو (نوع المحتوى: $contentType).")
                 }
 
@@ -89,7 +98,7 @@ object VideoFileDownloader {
                 outputUri = context.contentResolver.insert(MediaStore.Video.Media.EXTERNAL_CONTENT_URI, values)
                     ?: throw Exception("تعذر إنشاء ملف الفيديو في مساحة التخزين.")
 
-                val input = connection.inputStream
+                val input = activeConnection.inputStream
                 val output = context.contentResolver.openOutputStream(outputUri!!, "w")
                     ?: throw Exception("تعذر فتح ملف الحفظ.")
                 input.use { source ->
