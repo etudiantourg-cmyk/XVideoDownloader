@@ -312,24 +312,20 @@ class FloatingService : Service() {
         downloadButton: Button
     ) {
         try {
-            val request = DownloadManager.Request(Uri.parse(format.url)).apply {
-                setTitle("X video $statusId")
-                setDescription("جارٍ تنزيل الفيديو")
-                setMimeType("video/mp4")
-                if (Build.VERSION.SDK_INT >= 24) setAllowedOverMetered(true)
-                setAllowedOverRoaming(false)
-                addRequestHeader("User-Agent", "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36")
-                addRequestHeader("Referer", "https://x.com/")
-                setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-                setDestinationInExternalPublicDir(
-                    Environment.DIRECTORY_MOVIES,
-                    "XVideoDownloader/X_${statusId}_${format.height}p.mp4"
-                )
+            message.text = "جارٍ الاتصال بخادم الفيديو..."
+            downloadButton.isEnabled = false
+            VideoFileDownloader.download(
+                this,
+                format.url,
+                "X_${statusId}_${format.height}p.mp4",
+                "https://x.com/i/status/$statusId"
+            ) { success, resultMessage ->
+                mainHandler.post {
+                    message.text = resultMessage
+                    downloadButton.isEnabled = true
+                    downloadButton.text = if (success) "اكتمل التنزيل" else "إعادة المحاولة"
+                }
             }
-            val manager = getSystemService(Context.DOWNLOAD_SERVICE) as DownloadManager
-            manager.enqueue(request)
-            message.text = "بدأ التنزيل. ستجد الفيديو في Movies/XVideoDownloader."
-            downloadButton.text = "تم إرسال طلب التنزيل"
         } catch (_: Exception) {
             message.text = "تعذر بدء التنزيل. تحقق من صلاحية التخزين ثم أعد المحاولة."
         }
