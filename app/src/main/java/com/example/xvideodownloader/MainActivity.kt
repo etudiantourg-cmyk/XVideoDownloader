@@ -187,16 +187,15 @@ class MainActivity : Activity() {
                 show("رابط الفيديو غير موثوق."); return
             }
             val name = "x_" + id + "_" + f.height + "p.mp4"
-            val request = DownloadManager.Request(uri).setTitle(name)
-                .setDescription("X Video Downloader")
-                .addRequestHeader("User-Agent", "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36")
-                .addRequestHeader("Referer", "https://x.com/")
-                .setMimeType("video/mp4")
-                .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
-                .setDestinationInExternalPublicDir(Environment.DIRECTORY_MOVIES, "XVideoDownloader/$name")
-                .setAllowedOverMetered(true).setAllowedOverRoaming(false)
-            (getSystemService(DOWNLOAD_SERVICE) as DownloadManager).enqueue(request)
-            show("بدأ التنزيل. ستجد الفيديو في Movies/XVideoDownloader.")
+            show("جارٍ الاتصال بخادم الفيديو...")
+            VideoFileDownloader.download(
+                this,
+                f.url,
+                name,
+                "https://x.com/i/status/$id"
+            ) { success, message ->
+                runOnUiThread { show(message) }
+            }
         } catch (_: Exception) { show("تعذر بدء التنزيل.") }
     }
 
