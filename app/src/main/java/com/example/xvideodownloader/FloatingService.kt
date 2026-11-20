@@ -179,7 +179,7 @@ class FloatingService : Service() {
             }
         }
         close.setOnClickListener { panel?.dismiss() }
-        panel?.showAtLocation(bubble, Gravity.CENTER, 0, 0)
+        panel?.showAtLocation(bubble ?: box, Gravity.CENTER, 0, 0)
     }
 
     private fun extractStatusId(value: String): String? {
@@ -262,14 +262,16 @@ class FloatingService : Service() {
             val rate = if (format.bitrate > 0) " • ${format.bitrate / 1000} kbps" else ""
             quality + rate
         }.toTypedArray()
-        android.app.AlertDialog.Builder(this)
+        val dialog = android.app.AlertDialog.Builder(this)
             .setTitle("اختر جودة الفيديو")
-            .setItems(labels) { dialog, which ->
-                dialog.dismiss()
+            .setItems(labels) { selected, which ->
+                selected.dismiss()
                 enqueueDownload(formats[which], statusId, message, downloadButton)
             }
             .setNegativeButton("إلغاء", null)
-            .show()
+            .create()
+        dialog.window?.setType(overlayType())
+        dialog.show()
     }
 
     private fun enqueueDownload(
