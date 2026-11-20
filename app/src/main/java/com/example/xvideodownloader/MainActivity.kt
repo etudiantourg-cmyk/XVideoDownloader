@@ -84,6 +84,8 @@ class MainActivity : Activity() {
         })
         setContentView(ScrollView(this).apply { addView(root) })
         receiveShare(intent)
+        // Start the floating bubble automatically; Android will ask for overlay permission once.
+        enableFloating()
     }
 
     private fun show(message: String) { status.text = message }
@@ -187,6 +189,9 @@ class MainActivity : Activity() {
             val name = "x_" + id + "_" + f.height + "p.mp4"
             val request = DownloadManager.Request(uri).setTitle(name)
                 .setDescription("X Video Downloader")
+                .addRequestHeader("User-Agent", "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36")
+                .addRequestHeader("Referer", "https://x.com/")
+                .setMimeType("video/mp4")
                 .setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
                 .setDestinationInExternalPublicDir(Environment.DIRECTORY_MOVIES, "XVideoDownloader/$name")
                 .setAllowedOverMetered(true).setAllowedOverRoaming(false)
