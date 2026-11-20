@@ -29,7 +29,6 @@ import android.widget.TextView
 import org.json.JSONObject
 import java.net.HttpURLConnection
 import java.net.URL
-import java.net.URLEncoder
 import kotlin.concurrent.thread
 
 class FloatingService : Service() {
@@ -45,6 +44,7 @@ class FloatingService : Service() {
         showBubble()
     }
 
+    @Suppress("DEPRECATION")
     private fun startKeepAliveNotification() {
         val channelId = "x_video_overlay"
         if (Build.VERSION.SDK_INT >= 26) {
@@ -58,7 +58,6 @@ class FloatingService : Service() {
         val notification = if (Build.VERSION.SDK_INT >= 26) {
             Notification.Builder(this, channelId)
         } else {
-            @Suppress("DEPRECATION")
             Notification.Builder(this)
         }.setSmallIcon(android.R.drawable.stat_sys_download_done)
             .setContentTitle("X Video Downloader")
