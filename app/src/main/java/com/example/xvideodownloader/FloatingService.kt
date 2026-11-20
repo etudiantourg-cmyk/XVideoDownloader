@@ -44,6 +44,11 @@ class FloatingService : Service() {
         showBubble()
     }
 
+    override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
+        if (bubble == null) showBubble()
+        return START_STICKY
+    }
+
     @Suppress("DEPRECATION")
     private fun startKeepAliveNotification() {
         val channelId = "x_video_overlay"
@@ -313,7 +318,8 @@ class FloatingService : Service() {
                 setMimeType("video/mp4")
                 if (Build.VERSION.SDK_INT >= 24) setAllowedOverMetered(true)
                 setAllowedOverRoaming(false)
-                addRequestHeader("User-Agent", "Mozilla/5.0 (Linux; Android) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36")
+                addRequestHeader("User-Agent", "Mozilla/5.0 (Linux; Android 10) AppleWebKit/537.36 Chrome/120 Mobile Safari/537.36")
+                addRequestHeader("Referer", "https://x.com/")
                 setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
                 setDestinationInExternalPublicDir(
                     Environment.DIRECTORY_MOVIES,
