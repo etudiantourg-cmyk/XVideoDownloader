@@ -5,6 +5,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />
     <application
+        android:requestLegacyExternalStorage="true"
         android:allowBackup="false"
         android:label="X Video Downloader"
         android:theme="@android:style/Theme.Material.Light.NoActionBar"
