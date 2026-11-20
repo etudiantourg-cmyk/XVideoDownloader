@@ -1,6 +1,9 @@
 package com.example.xvideodownloader
 
 import android.app.DownloadManager
+import android.app.Notification
+import android.app.NotificationChannel
+import android.app.NotificationManager
 import android.app.Service
 import android.content.ClipboardManager
 import android.content.Context
@@ -37,8 +40,32 @@ class FloatingService : Service() {
 
     override fun onCreate() {
         super.onCreate()
+        startKeepAliveNotification()
         windowManager = getSystemService(WINDOW_SERVICE) as WindowManager
         showBubble()
+    }
+
+    private fun startKeepAliveNotification() {
+        val channelId = "x_video_overlay"
+        if (Build.VERSION.SDK_INT >= 26) {
+            val channel = NotificationChannel(
+                channelId,
+                "الزر العائم",
+                NotificationManager.IMPORTANCE_LOW
+            ).apply { description = "إبقاء زر تنزيل الفيديو متاحاً فوق التطبيقات" }
+            (getSystemService(NOTIFICATION_SERVICE) as NotificationManager).createNotificationChannel(channel)
+        }
+        val notification = if (Build.VERSION.SDK_INT >= 26) {
+            Notification.Builder(this, channelId)
+        } else {
+            @Suppress("DEPRECATION")
+            Notification.Builder(this)
+        }.setSmallIcon(android.R.drawable.stat_sys_download_done)
+            .setContentTitle("X Video Downloader")
+            .setContentText("الزر العائم يعمل")
+            .setOngoing(true)
+            .build()
+        startForeground(101, notification)
     }
 
     private fun overlayType(): Int =
