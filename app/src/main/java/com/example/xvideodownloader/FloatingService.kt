@@ -195,15 +195,40 @@ class FloatingService : Service() {
     private fun onBubbleTapped() {
         if (panel?.isShowing == true) {
             panel?.dismiss()
-        } else {
-            showPanel()
+            return
+        }
+        val detectedId = getSharedPreferences("detected_post", MODE_PRIVATE).getString("status_id", null)
+        if (!detectedId.isNullOrBlank()) downloadDetectedPost(detectedId) else showPanel()
+    }
+
+    private fun downloadDetectedPost(statusId: String) {
+        Toast.makeText(this, "تم التعرف على المنشور؛ جارٍ استخراج الفيديو...", Toast.LENGTH_SHORT).show()
+        resolveVideo(statusId) { result ->
+            when (result) {
+                is ResolveResult.Error -> {
+                    Toast.makeText(this, result.message, Toast.LENGTH_LONG).show()
+                    showPanel()
+                }
+                is ResolveResult.Success -> {
+                    val best = result.formats.maxWithOrNull(compareBy<VideoFormat> { it.height }.thenBy { it.bitrate })
+                    if (best == null) {
+                        Toast.makeText(this, "لم نعثر على فيديو قابل للتنزيل.", Toast.LENGTH_LONG).show()
+                        showPanel()
+                    } else {
+                        VideoFileDownloader.download(this, best.url, "X_${statusId}_${best.height}p.mp4",
+                            "https://x.com/i/status/$statusId") { _, message ->
+                            mainHandler.post { Toast.makeText(this, message, Toast.LENGTH_LONG).show() }
+                        }
+                    }
+                }
+            }
         }
     }
     private fun showPanel() {
         if (panel?.isShowing == true) return
         val density = resources.displayMetrics.density
-        bubble?.let { try { windowManager.removeView(it) } catch (_: Exception) {} }
-        bubble = null
+        // Keep the overlay attached as a valid PopupWindow anchor.
+        bubble?.visibility = View.INVISIBLE
         val row = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
