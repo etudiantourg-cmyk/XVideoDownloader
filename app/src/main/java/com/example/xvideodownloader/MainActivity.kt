@@ -61,7 +61,8 @@ class MainActivity : Activity() {
             text = "تشغيل الأيقونة العائمة"
             isAllCaps = false
             setOnClickListener { enableFloating() }
-        })        root.addView(Button(this).apply {
+        })
+        root.addView(Button(this).apply {
             text = "فتح التنزيلات"
             isAllCaps = false
             setOnClickListener {
