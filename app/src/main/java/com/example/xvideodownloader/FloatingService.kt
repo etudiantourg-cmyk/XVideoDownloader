@@ -24,7 +24,6 @@ import android.view.WindowManager
 import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
-import android.widget.ImageView
 import android.widget.PopupWindow
 import android.widget.TextView
 import android.widget.Toast
@@ -81,14 +80,18 @@ class FloatingService : Service() {
 
     private fun showBubble() {
         if (bubble != null) return
-        // Use the requested X + yellow download mark for the floating bubble.
-        // The launcher icon in the manifest does not automatically style overlay views.
-        val button = ImageView(this).apply {
-            setImageResource(R.drawable.ic_floating_logo)
-            scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
-            setBackgroundColor(Color.TRANSPARENT)
+        val button = TextView(this).apply {
+            text = "⬇"
+            textSize = 29f
+            gravity = Gravity.CENTER
+            setTextColor(Color.WHITE)
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(0xFF0788C8.toInt())
+                setStroke((2 * resources.displayMetrics.density).toInt(), Color.WHITE)
+            }
             elevation = 14f
-            contentDescription = "اضغط لتنزيل فيديو X"
+            contentDescription = "افتح شريط رابط التنزيل"
         }
         val bubbleSize = (56 * resources.displayMetrics.density).toInt()
         val params = WindowManager.LayoutParams(
@@ -214,22 +217,21 @@ class FloatingService : Service() {
             }
             elevation = 16f
         }
-        val bubbleButton = TextView(this).apply {
+        val downloadButton = TextView(this).apply {
             text = "⬇"
-            textSize = 30f
+            textSize = 29f
             gravity = Gravity.CENTER
             setTextColor(Color.WHITE)
             background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
-                setColor(0xFF0284C7.toInt())
+                setColor(0xFF0788C8.toInt())
                 setStroke((2 * density).toInt(), Color.WHITE)
             }
             elevation = 8f
-            contentDescription = "إغلاق شريط التنزيل"
-            setOnClickListener { panel?.dismiss() }
+            contentDescription = "اضغط لتنزيل الفيديو"
         }
         val bubbleSize = (48 * density).toInt()
-        row.addView(bubbleButton, LinearLayout.LayoutParams(bubbleSize, bubbleSize))
+        row.addView(downloadButton, LinearLayout.LayoutParams(bubbleSize, bubbleSize))
         val input = EditText(this).apply {
             hint = "ألصق رابط منشور X هنا"
             setSingleLine(true)
@@ -251,21 +253,7 @@ class FloatingService : Service() {
                 }
             } catch (_: Exception) {}
         }
-        val send = TextView(this).apply {
-            text = "➜"
-            textSize = 27f
-            gravity = Gravity.CENTER
-            setTextColor(Color.WHITE)
-            background = GradientDrawable().apply {
-                shape = GradientDrawable.OVAL
-                setColor(0xFF1685E5.toInt())
-            }
-            elevation = 5f
-            contentDescription = "تنزيل الفيديو"
-        }
-        val size = (54 * density).toInt()
         row.addView(input, LinearLayout.LayoutParams(0, (54 * density).toInt(), 1f))
-        row.addView(send, LinearLayout.LayoutParams(size, size))
         val hint = TextView(this).apply {
             text = "الصق رابط منشور X ثم اضغط السهم للتنزيل"
             textSize = 12f
@@ -296,22 +284,22 @@ class FloatingService : Service() {
             if (postId == null) {
                 hint.text = "الرابط غير صحيح. ألصق رابط منشور من X يحتوي على فيديو."
             } else {
-                send.isEnabled = false
-                send.alpha = 0.55f
+                downloadButton.isEnabled = false
+                downloadButton.alpha = 0.55f
                 hint.text = "جارٍ استخراج الفيديو..."
                 resolveVideo(postId) { result ->
                     when (result) {
                         is ResolveResult.Error -> {
                             hint.text = result.message
-                            send.isEnabled = true
-                            send.alpha = 1f
+                            downloadButton.isEnabled = true
+                            downloadButton.alpha = 1f
                         }
                         is ResolveResult.Success -> {
                             val best = result.formats.maxWithOrNull(compareBy<VideoFormat> { it.height }.thenBy { it.bitrate })
                             if (best == null) {
                                 hint.text = "لم نعثر على جودة قابلة للتنزيل."
-                                send.isEnabled = true
-                                send.alpha = 1f
+                                downloadButton.isEnabled = true
+                                downloadButton.alpha = 1f
                             } else {
                                 hint.text = "جارٍ تنزيل الفيديو بأفضل جودة (${best.height}p)..."
                                 VideoFileDownloader.download(
@@ -322,8 +310,8 @@ class FloatingService : Service() {
                                 ) { success, message ->
                                     mainHandler.post {
                                         hint.text = message
-                                        send.isEnabled = true
-                                        send.alpha = 1f
+                                        downloadButton.isEnabled = true
+                                        downloadButton.alpha = 1f
                                         if (success) Toast.makeText(this, message, Toast.LENGTH_LONG).show()
                                     }
                                 }
@@ -333,7 +321,7 @@ class FloatingService : Service() {
                 }
             }
         }
-        send.setOnClickListener { startDownload() }
+        downloadButton.setOnClickListener { startDownload() }
         input.setOnEditorActionListener { _, actionId, _ ->
             if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_GO ||
                 actionId == android.view.inputmethod.EditorInfo.IME_ACTION_DONE) {
@@ -350,6 +338,7 @@ class FloatingService : Service() {
         try {
             panel?.showAtLocation(attachedAnchor, Gravity.TOP or Gravity.START, (8 * density).toInt(), (resources.displayMetrics.heightPixels * 0.62f).toInt())
             if (panel?.isShowing != true) throw IllegalStateException("PopupWindow did not attach")
+            attachedAnchor.visibility = View.INVISIBLE
         } catch (e: Exception) {
             panel = null
             attachedAnchor.visibility = View.VISIBLE
