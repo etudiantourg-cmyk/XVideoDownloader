@@ -1,5 +1,8 @@
 package com.example.xvideodownloader
 
+import android.animation.ObjectAnimator
+import android.animation.ValueAnimator
+import android.view.animation.AccelerateDecelerateInterpolator
 import android.app.DownloadManager
 import android.app.Notification
 import android.app.NotificationChannel
@@ -39,9 +42,9 @@ class FloatingService : Service() {
     private val mainHandler = Handler(Looper.getMainLooper())
     private var panel: PopupWindow? = null // retained for binary compatibility; overlay now uses one WindowManager view
     private var overlayParams: WindowManager.LayoutParams? = null
-    private var bubbleButton: TextView? = null
-    private var panelView: View? = null
-    private var panelParams: WindowManager.LayoutParams? = null
+    private var bubbleButton: View? = null
+    private var arrowView: TextView? = null
+    private var arrowAnimator: ObjectAnimator? = null
     private var linkInput: EditText? = null
     private var statusMessage: TextView? = null
     private var isPanelOpen = false
@@ -89,11 +92,15 @@ class FloatingService : Service() {
     private fun showBubble() {
         if (bubble != null) return
         val density = resources.displayMetrics.density
-        val button = TextView(this).apply {
-            text = "⬇"
+        val arrow = TextView(this).apply {
+            text = "↓"
             textSize = 29f
             gravity = Gravity.CENTER
             setTextColor(Color.WHITE)
+            includeFontPadding = false
+            contentDescription = "سهم تنزيل متحرك للأسفل"
+        }
+        val button = android.widget.FrameLayout(this).apply {
             background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
                 setColor(0xFF0788C8.toInt())
@@ -101,7 +108,12 @@ class FloatingService : Service() {
             }
             elevation = 14f
             contentDescription = "افتح شريط رابط التنزيل"
+            addView(arrow, android.widget.FrameLayout.LayoutParams(
+                android.widget.FrameLayout.LayoutParams.MATCH_PARENT,
+                android.widget.FrameLayout.LayoutParams.MATCH_PARENT
+            ))
         }
+        arrowView = arrow
         val root = android.widget.FrameLayout(this).apply {
             setBackgroundColor(Color.TRANSPARENT)
             addView(button, android.widget.FrameLayout.LayoutParams(
@@ -165,9 +177,24 @@ class FloatingService : Service() {
             bubble = root
             overlayParams = params
             bubbleButton = button
+            startArrowAnimation()
         } catch (_: Exception) {
             bubble = null
             Toast.makeText(this, "تعذر إنشاء الأيقونة العائمة. تحقق من إذن الظهور فوق التطبيقات.", Toast.LENGTH_LONG).show()
+        }
+    }
+
+    /** Subtle, continuous downward motion on the arrow only; the bubble itself stays still. */
+    private fun startArrowAnimation() {
+        val arrow = arrowView ?: return
+        arrowAnimator?.cancel()
+        val distance = 4f * resources.displayMetrics.density
+        arrowAnimator = ObjectAnimator.ofFloat(arrow, View.TRANSLATION_Y, 0f, distance).apply {
+            duration = 650L
+            repeatCount = ValueAnimator.INFINITE
+            repeatMode = ValueAnimator.REVERSE
+            interpolator = AccelerateDecelerateInterpolator()
+            start()
         }
     }
 
@@ -213,7 +240,6 @@ class FloatingService : Service() {
 
     private fun removeBubbleByDrop() {
         hideTrashTarget()
-        closePanel()
         bubble?.let { try { windowManager.removeView(it) } catch (_: Exception) {} }
         bubble = null
         bubbleButton = null
@@ -226,152 +252,127 @@ class FloatingService : Service() {
         showPanel()
     }
 
-    /**
-     * The bubble and the expanded download bar are separate WindowManager views.
-     * Keeping the bubble attached prevents it from disappearing when the bar opens.
-     */
     private fun showPanel() {
-        if (isPanelOpen || panelView != null) return
+        if (isPanelOpen) return
+        val root = bubble as? android.widget.FrameLayout ?: return
+        val params = overlayParams ?: return
         val density = resources.displayMetrics.density
-        val screenWidth = resources.displayMetrics.widthPixels
-        val margin = (22 * density).toInt()
-
-        val card = LinearLayout(this).apply {
+        val row = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            layoutDirection = View.LAYOUT_DIRECTION_LTR
-            setPadding((14 * density).toInt(), (10 * density).toInt(), (10 * density).toInt(), (10 * density).toInt())
+            setPadding((8 * density).toInt(), (6 * density).toInt(), (10 * density).toInt(), (6 * density).toInt())
             background = GradientDrawable().apply {
                 setColor(Color.WHITE)
-                cornerRadius = 34f * density
-                setStroke((1 * density).toInt(), 0xFFE8EDF5.toInt())
+                cornerRadius = 28f * density
+                setStroke((1 * density).toInt(), 0xFFD7DEE8.toInt())
             }
-            elevation = 20f * density
+            elevation = 16f
         }
-
+        val downloadButton = TextView(this).apply {
+            text = "⬇"
+            textSize = 29f
+            gravity = Gravity.CENTER
+            setTextColor(Color.WHITE)
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(0xFF0788C8.toInt())
+                setStroke((2 * density).toInt(), Color.WHITE)
+            }
+            elevation = 8f
+            contentDescription = "اضغط لتنزيل الفيديو"
+        }
         val input = EditText(this).apply {
-            hint = "Download"
+            hint = "ألصق رابط منشور X هنا"
             setSingleLine(true)
             inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_URI
             isFocusable = true
             isFocusableInTouchMode = true
             isLongClickable = true
-            textSize = 23f
-            setTextColor(0xFF1265D8.toInt())
-            setHintTextColor(0xFF1265D8.toInt())
-            setSelectAllOnFocus(false)
+            textSize = 16f
+            setTextColor(0xFF111827.toInt())
+            setHintTextColor(0xFF94A3B8.toInt())
             setPadding((12 * density).toInt(), 0, (8 * density).toInt(), 0)
             background = null
             imeOptions = android.view.inputmethod.EditorInfo.IME_ACTION_GO
-            gravity = Gravity.CENTER_VERTICAL
-            contentDescription = "حقل رابط الفيديو. اضغط مطولاً للصق رابط X"
             try {
                 val clipboard = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
-                val copied = if (clipboard.hasPrimaryClip()) clipboard.primaryClip?.getItemAt(0)
-                    ?.coerceToText(this@FloatingService)?.toString().orEmpty() else ""
+                val copied = if (clipboard.hasPrimaryClip()) clipboard.primaryClip?.getItemAt(0)?.coerceToText(this@FloatingService)?.toString().orEmpty() else ""
                 if (copied.contains("x.com/") || copied.contains("twitter.com/")) setText(copied.trim())
             } catch (_: Exception) {}
         }
-
-        val downloadButton = TextView(this).apply {
-            text = "⇩"
-            textSize = 34f
-            gravity = Gravity.CENTER
-            setTextColor(Color.WHITE)
-            background = GradientDrawable().apply {
-                cornerRadius = 22f * density
-                setColor(0xFF0878F9.toInt())
-            }
-            elevation = 6f * density
-            isClickable = true
-            isFocusable = true
-            contentDescription = "تنزيل الفيديو"
-        }
-
-        card.addView(input, LinearLayout.LayoutParams(0, (88 * density).toInt(), 1f).apply {
-            marginEnd = (10 * density).toInt()
-        })
-        card.addView(downloadButton, LinearLayout.LayoutParams((88 * density).toInt(), (88 * density).toInt()))
-
-        val status = TextView(this).apply {
-            text = "الصق رابط فيديو X ثم اضغط زر التنزيل"
+        row.addView(downloadButton, LinearLayout.LayoutParams((48 * density).toInt(), (48 * density).toInt()))
+        row.addView(input, LinearLayout.LayoutParams(0, (54 * density).toInt(), 1f))
+        val message = TextView(this).apply {
+            text = "الصق رابط منشور X ثم اضغط السهم للتنزيل"
             textSize = 12f
-            gravity = Gravity.CENTER
             setTextColor(0xFF64748B.toInt())
-            setPadding(0, (9 * density).toInt(), 0, 0)
+            gravity = Gravity.CENTER
+            setPadding(0, (5 * density).toInt(), 0, 0)
         }
         val content = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding((2 * density).toInt(), (2 * density).toInt(), (2 * density).toInt(), (2 * density).toInt())
-            addView(card, LinearLayout.LayoutParams(
-                LinearLayout.LayoutParams.MATCH_PARENT,
-                LinearLayout.LayoutParams.WRAP_CONTENT
-            ))
-            addView(status)
+            setPadding((4 * density).toInt(), (4 * density).toInt(), (4 * density).toInt(), (4 * density).toInt())
+            addView(row)
+            addView(message)
         }
-
-        val params = WindowManager.LayoutParams(
-            (screenWidth - margin * 2).coerceAtLeast((260 * density).toInt()),
-            WindowManager.LayoutParams.WRAP_CONTENT,
-            overlayType(),
-            WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH,
-            PixelFormat.TRANSLUCENT
-        ).apply {
-            gravity = Gravity.CENTER
-            softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
-            windowAnimations = android.R.style.Animation_Dialog
-        }
-
-        content.setOnTouchListener { _, event ->
-            if (event.action == MotionEvent.ACTION_OUTSIDE) {
-                closePanel()
-                true
-            } else false
-        }
-
+        arrowAnimator?.cancel()
+        arrowAnimator = null
+        arrowView?.translationY = 0f
+        root.removeAllViews()
+        root.addView(content, android.widget.FrameLayout.LayoutParams(
+            resources.displayMetrics.widthPixels - (16 * density).toInt(),
+            android.widget.FrameLayout.LayoutParams.WRAP_CONTENT,
+            Gravity.TOP or Gravity.START
+        ))
+        params.width = resources.displayMetrics.widthPixels - (16 * density).toInt()
+        params.height = android.widget.FrameLayout.LayoutParams.WRAP_CONTENT
+        params.flags = WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH
+        params.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+        params.x = 0
+        params.y = (resources.displayMetrics.heightPixels * 0.48f).toInt()
+        params.softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
         try {
-            windowManager.addView(content, params)
-            panelView = content
-            panelParams = params
-            linkInput = input
-            statusMessage = status
+            windowManager.updateViewLayout(root, params)
             isPanelOpen = true
+            linkInput = input
+            statusMessage = message
+            root.setOnTouchListener { _, event ->
+                if (event.action == MotionEvent.ACTION_OUTSIDE) {
+                    closePanel()
+                    true
+                } else false
+            }
         } catch (_: Exception) {
-            panelView = null
-            panelParams = null
-            isPanelOpen = false
-            Toast.makeText(this, "تعذر فتح شريط التنزيل. حاول مجدداً.", Toast.LENGTH_LONG).show()
+            closePanel()
+            Toast.makeText(this, "تعذر فتح شريط الرابط. أعد المحاولة.", Toast.LENGTH_LONG).show()
             return
         }
-
         val startDownload = {
             val postId = extractStatusId(input.text.toString().trim())
             if (postId == null) {
-                status.text = "ألصق رابط منشور X صحيحاً أولاً"
+                message.text = "الرابط غير صحيح. ألصق رابط منشور X يحتوي على فيديو."
             } else if (!isDownloading) {
                 isDownloading = true
                 downloadButton.isEnabled = false
                 downloadButton.alpha = 0.55f
-                status.text = "جارٍ استخراج الفيديو..."
+                message.text = "جارٍ استخراج الفيديو..."
                 resolveVideo(postId) { result ->
                     when (result) {
                         is ResolveResult.Error -> {
-                            status.text = result.message
+                            message.text = result.message
                             isDownloading = false
                             downloadButton.isEnabled = true
                             downloadButton.alpha = 1f
                         }
                         is ResolveResult.Success -> {
-                            val best = result.formats.maxWithOrNull(
-                                compareBy<VideoFormat> { it.height }.thenBy { it.bitrate }
-                            )
+                            val best = result.formats.maxWithOrNull(compareBy<VideoFormat> { it.height }.thenBy { it.bitrate })
                             if (best == null) {
-                                status.text = "لم نعثر على جودة قابلة للتنزيل."
+                                message.text = "لم نعثر على جودة قابلة للتنزيل."
                                 isDownloading = false
                                 downloadButton.isEnabled = true
                                 downloadButton.alpha = 1f
                             } else {
-                                status.text = "جارٍ تنزيل الفيديو بأفضل جودة (${best.height}p)..."
+                                message.text = "جارٍ تنزيل الفيديو بأفضل جودة (${best.height}p)..."
                                 VideoFileDownloader.download(
                                     this,
                                     best.url,
@@ -379,7 +380,7 @@ class FloatingService : Service() {
                                     "https://x.com/i/status/$postId"
                                 ) { success, resultMessage ->
                                     mainHandler.post {
-                                        status.text = resultMessage
+                                        message.text = resultMessage
                                         isDownloading = false
                                         downloadButton.isEnabled = true
                                         downloadButton.alpha = 1f
@@ -392,7 +393,6 @@ class FloatingService : Service() {
                 }
             }
         }
-
         downloadButton.setOnClickListener { startDownload() }
         input.setOnEditorActionListener { _, actionId, _ ->
             if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_GO ||
@@ -409,17 +409,29 @@ class FloatingService : Service() {
     }
 
     private fun closePanel() {
-        val view = panelView ?: return
+        val root = bubble as? android.widget.FrameLayout ?: return
+        val params = overlayParams ?: return
         try {
-            val imm = getSystemService(INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
-            linkInput?.let { imm.hideSoftInputFromWindow(it.windowToken, 0) }
+            val button = bubbleButton ?: return
+            root.setOnTouchListener(null)
+            root.removeAllViews()
+            root.addView(button, android.widget.FrameLayout.LayoutParams(
+                (56 * resources.displayMetrics.density).toInt(),
+                (56 * resources.displayMetrics.density).toInt(),
+                Gravity.START or Gravity.TOP
+            ))
+            params.width = (56 * resources.displayMetrics.density).toInt()
+            params.height = (56 * resources.displayMetrics.density).toInt()
+            params.flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+            params.gravity = Gravity.TOP or Gravity.START
+            params.x = params.x.coerceAtLeast(0)
+            params.softInputMode = WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN
+            windowManager.updateViewLayout(root, params)
+            startArrowAnimation()
         } catch (_: Exception) {}
-        try { windowManager.removeView(view) } catch (_: Exception) {}
-        panelView = null
-        panelParams = null
+        isPanelOpen = false
         linkInput = null
         statusMessage = null
-        isPanelOpen = false
     }
 
     private fun extractStatusId(value: String): String? {
