@@ -99,8 +99,8 @@ class FloatingService : Service() {
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
             PixelFormat.TRANSLUCENT
         ).apply {
-            gravity = Gravity.TOP or Gravity.END
-            x = 18
+            gravity = Gravity.TOP or Gravity.START
+            x = (8 * resources.displayMetrics.density).toInt()
             y = 230
         }
         button.setOnTouchListener(object : View.OnTouchListener {
@@ -121,7 +121,7 @@ class FloatingService : Service() {
                         val dx = (event.rawX - startX).toInt()
                         val dy = (event.rawY - startY).toInt()
                         if (kotlin.math.abs(dx) + kotlin.math.abs(dy) > 10) dragged = true
-                        params.x = (originalX - dx).coerceAtLeast(0)
+                        params.x = (originalX + dx).coerceAtLeast(0)
                         params.y = (originalY + dy).coerceAtLeast(0)
                         try { windowManager.updateViewLayout(button, params) } catch (_: Exception) {}
                         if (dragged) showTrashTarget()
@@ -202,6 +202,8 @@ class FloatingService : Service() {
     private fun showPanel() {
         if (panel?.isShowing == true) return
         val density = resources.displayMetrics.density
+        bubble?.let { try { windowManager.removeView(it) } catch (_: Exception) {} }
+        bubble = null
         val row = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -213,6 +215,22 @@ class FloatingService : Service() {
             }
             elevation = 16f
         }
+        val bubbleButton = TextView(this).apply {
+            text = "⬇"
+            textSize = 30f
+            gravity = Gravity.CENTER
+            setTextColor(Color.WHITE)
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(0xFF0284C7.toInt())
+                setStroke((2 * density).toInt(), Color.WHITE)
+            }
+            elevation = 8f
+            contentDescription = "إغلاق شريط التنزيل"
+            setOnClickListener { panel?.dismiss() }
+        }
+        val bubbleSize = (72 * density).toInt()
+        row.addView(bubbleButton, LinearLayout.LayoutParams(bubbleSize, bubbleSize))
         val input = EditText(this).apply {
             hint = "ألصق رابط منشور X هنا"
             setSingleLine(true)
@@ -258,13 +276,14 @@ class FloatingService : Service() {
             addView(row)
             addView(hint)
         }
-        val width = (resources.displayMetrics.widthPixels * 0.94f).toInt()
+        val width = resources.displayMetrics.widthPixels - (16 * density).toInt()
         panel = PopupWindow(content, width, WindowManager.LayoutParams.WRAP_CONTENT, true).apply {
             isOutsideTouchable = true
             setBackgroundDrawable(GradientDrawable().apply { setColor(Color.TRANSPARENT) })
             elevation = 18f
             inputMethodMode = PopupWindow.INPUT_METHOD_NEEDED
             softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+            setOnDismissListener { panel = null; showBubble() }
         }
         val startDownload = {
             val postId = extractStatusId(input.text.toString().trim())
@@ -316,7 +335,7 @@ class FloatingService : Service() {
                 true
             } else false
         }
-        panel?.showAtLocation(bubble ?: content, Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL, 0, (24 * density).toInt())
+        panel?.showAtLocation(content, Gravity.TOP or Gravity.START, (8 * density).toInt(), (resources.displayMetrics.heightPixels * 0.62f).toInt())
         input.requestFocus()
         input.post {
             val imm = getSystemService(INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
