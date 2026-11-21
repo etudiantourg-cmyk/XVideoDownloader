@@ -82,7 +82,7 @@ class FloatingService : Service() {
         if (bubble != null) return
         val button = TextView(this).apply {
             text = "⬇"
-            textSize = 30f
+            textSize = 20f
             setTextColor(Color.WHITE)
             gravity = Gravity.CENTER
             background = GradientDrawable().apply {
@@ -93,7 +93,7 @@ class FloatingService : Service() {
             elevation = 14f
             contentDescription = "اضغط لتنزيل فيديو X"
         }
-        val bubbleSize = (84 * resources.displayMetrics.density).toInt()
+        val bubbleSize = (56 * resources.displayMetrics.density).toInt()
         val params = WindowManager.LayoutParams(
             bubbleSize, bubbleSize, overlayType(),
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
@@ -150,7 +150,7 @@ class FloatingService : Service() {
         val size = (72 * resources.displayMetrics.density).toInt()
         val target = TextView(this).apply {
             text = "🗑"
-            textSize = 30f
+            textSize = 20f
             gravity = Gravity.CENTER
             setTextColor(Color.WHITE)
             background = GradientDrawable().apply {
@@ -229,11 +229,16 @@ class FloatingService : Service() {
             contentDescription = "إغلاق شريط التنزيل"
             setOnClickListener { panel?.dismiss() }
         }
-        val bubbleSize = (72 * density).toInt()
+        val bubbleSize = (48 * density).toInt()
         row.addView(bubbleButton, LinearLayout.LayoutParams(bubbleSize, bubbleSize))
         val input = EditText(this).apply {
             hint = "ألصق رابط منشور X هنا"
             setSingleLine(true)
+            inputType = android.text.InputType.TYPE_CLASS_TEXT or android.text.InputType.TYPE_TEXT_VARIATION_URI
+            isFocusable = true
+            isFocusableInTouchMode = true
+            isLongClickable = true
+            textIsSelectable = false
             textSize = 16f
             setTextColor(0xFF111827.toInt())
             setHintTextColor(0xFF94A3B8.toInt())
