@@ -1,8 +1,7 @@
 {
-  "keys": [
-    {
-      " apikey ": "REPLACE-WITH-A-LONG-RANDOM-API-KEY",
-      "name": "Universal Video Downloader Android"
-    }
-  ]
+  "00000000-0000-4000-8000-000000000000": {
+    "name": "Universal Video Downloader Android",
+    "limit": 20,
+    "allowedServices": "all"
+  }
 }
