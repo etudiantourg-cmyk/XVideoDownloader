@@ -93,8 +93,11 @@ class FloatingService : Service() {
         if (bubble != null) return
         val density = resources.displayMetrics.density
         val arrow = TextView(this).apply {
-            text = "↓"
-            textSize = 29f
+            text = "⬇"
+            textSize = 31f
+            typeface = android.graphics.Typeface.create("sans-serif-black", android.graphics.Typeface.BOLD)
+            paint.strokeWidth = 1.6f
+            paint.style = android.graphics.Paint.Style.FILL_AND_STROKE
             gravity = Gravity.CENTER
             setTextColor(Color.WHITE)
             includeFontPadding = false
@@ -270,7 +273,10 @@ class FloatingService : Service() {
         }
         val downloadButton = TextView(this).apply {
             text = "⬇"
-            textSize = 29f
+            textSize = 31f
+            typeface = android.graphics.Typeface.create("sans-serif-black", android.graphics.Typeface.BOLD)
+            paint.strokeWidth = 1.6f
+            paint.style = android.graphics.Paint.Style.FILL_AND_STROKE
             gravity = Gravity.CENTER
             setTextColor(Color.WHITE)
             background = GradientDrawable().apply {
