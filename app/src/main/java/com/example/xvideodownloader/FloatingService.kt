@@ -238,7 +238,6 @@ class FloatingService : Service() {
             isFocusable = true
             isFocusableInTouchMode = true
             isLongClickable = true
-            textIsSelectable = false
             textSize = 16f
             setTextColor(0xFF111827.toInt())
             setHintTextColor(0xFF94A3B8.toInt())
