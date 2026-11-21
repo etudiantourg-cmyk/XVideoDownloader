@@ -197,8 +197,20 @@ class FloatingService : Service() {
             panel?.dismiss()
             return
         }
-        val detectedId = getSharedPreferences("detected_post", MODE_PRIVATE).getString("status_id", null)
-        if (!detectedId.isNullOrBlank()) downloadDetectedPost(detectedId) else showPanel()
+        val detectedPrefs = getSharedPreferences("detected_post", MODE_PRIVATE)
+        val detectedId = detectedPrefs.getString("status_id", null)
+        val detectedAt = detectedPrefs.getLong("detected_at", 0L)
+        val isFresh = System.currentTimeMillis() - detectedAt < 45_000L
+        if (!detectedId.isNullOrBlank() && isFresh) {
+            val postUrl = "https://x.com/i/status/$detectedId"
+            try {
+                val clipboard = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
+                clipboard.setPrimaryClip(android.content.ClipData.newPlainText("X post link", postUrl))
+            } catch (_: Exception) { }
+            downloadDetectedPost(detectedId)
+        } else {
+            showPanel()
+        }
     }
 
     private fun downloadDetectedPost(statusId: String) {
