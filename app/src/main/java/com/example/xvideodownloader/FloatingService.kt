@@ -186,8 +186,8 @@ class FloatingService : Service() {
 
     private fun removeBubbleByDrop() {
         hideTrashTarget()
-        bubble?.let { try { windowManager.removeView(it) } catch (_: Exception) {} }
-        bubble = null
+        // Keep the original overlay attached: PopupWindow needs a valid window token.
+        bubble?.visibility = View.INVISIBLE
         Toast.makeText(this, "تم إخفاء الزر العائم. يمكنك تشغيله مجدداً من التطبيق.", Toast.LENGTH_LONG).show()
         stopSelf()
     }
@@ -287,7 +287,10 @@ class FloatingService : Service() {
             elevation = 18f
             inputMethodMode = PopupWindow.INPUT_METHOD_NEEDED
             softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
-            setOnDismissListener { panel = null; showBubble() }
+            setOnDismissListener {
+                panel = null
+                bubble?.visibility = View.VISIBLE
+            }
         }
         val startDownload = {
             val postId = extractStatusId(input.text.toString().trim())
@@ -339,7 +342,20 @@ class FloatingService : Service() {
                 true
             } else false
         }
-        panel?.showAtLocation(content, Gravity.TOP or Gravity.START, (8 * density).toInt(), (resources.displayMetrics.heightPixels * 0.62f).toInt())
+        val attachedAnchor = bubble
+        if (attachedAnchor == null || !attachedAnchor.isAttachedToWindow) {
+            panel = null
+            showBubble()
+            return
+        }
+        try {
+            panel?.showAtLocation(attachedAnchor, Gravity.TOP or Gravity.START, (8 * density).toInt(), (resources.displayMetrics.heightPixels * 0.62f).toInt())
+        } catch (e: Exception) {
+            panel = null
+            attachedAnchor.visibility = View.VISIBLE
+            Toast.makeText(this, "تعذر إظهار شريط الرابط. أعد الضغط على الأيقونة.", Toast.LENGTH_LONG).show()
+            return
+        }
         input.requestFocus()
         input.post {
             val imm = getSystemService(INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
