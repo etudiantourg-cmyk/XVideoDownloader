@@ -24,65 +24,144 @@ class MainActivity : Activity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val root = LinearLayout(this).apply {
+        val density = resources.displayMetrics.density
+        fun dp(value: Int) = (value * density).toInt()
+        fun rounded(color: Int, radius: Float, stroke: Int = 0): android.graphics.drawable.GradientDrawable =
+            android.graphics.drawable.GradientDrawable().apply {
+                setColor(color)
+                cornerRadius = dp(radius.toInt()).toFloat()
+                if (stroke != 0) setStroke(dp(1), stroke)
+            }
+        val page = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(24, 32, 24, 24)
-            setBackgroundColor(0xFFF5F7FB.toInt())
+            setPadding(dp(18), dp(18), dp(18), dp(28))
+            background = android.graphics.drawable.GradientDrawable(
+                android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM,
+                intArrayOf(0xFFEAF5FF.toInt(), 0xFFF7F4FF.toInt(), 0xFFFFF8EF.toInt())
+            )
         }
-        root.addView(TextView(this).apply {
-            text = "X Video Downloader"
-            textSize = 27f
+        val hero = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
             gravity = Gravity.CENTER
-            setTextColor(0xFF111827.toInt())
-            setPadding(0, 16, 0, 10)
+            setPadding(dp(20), dp(26), dp(20), dp(24))
+            background = android.graphics.drawable.GradientDrawable(
+                android.graphics.drawable.GradientDrawable.Orientation.TL_BR,
+                intArrayOf(0xFF1268D8.toInt(), 0xFF5636B8.toInt(), 0xFF8A42B8.toInt())
+            ).apply { cornerRadius = dp(30).toFloat() }
+            elevation = dp(8).toFloat()
+        }
+        val mascot = TextView(this).apply {
+            text = "⬇"
+            textSize = 48f
+            gravity = Gravity.CENTER
+            setTextColor(0xFFFFD75E.toInt())
+            typeface = android.graphics.Typeface.create("sans-serif-black", android.graphics.Typeface.BOLD)
+            paint.setShadowLayer(dp(5).toFloat(), 0f, dp(3).toFloat(), 0x99000000.toInt())
+        }
+        hero.addView(mascot, LinearLayout.LayoutParams(dp(94), dp(82)))
+        hero.addView(TextView(this).apply {
+            text = "X VIDEO DOWNLOADER"
+            textSize = 22f
+            gravity = Gravity.CENTER
+            setTextColor(android.graphics.Color.WHITE)
+            typeface = android.graphics.Typeface.create("sans-serif-black", android.graphics.Typeface.BOLD)
+            setPadding(0, dp(8), 0, dp(5))
         })
-        root.addView(TextView(this).apply {
-            text = "تنزيل فيديوهات X مباشرة إلى هاتفك"
+        hero.addView(TextView(this).apply {
+            text = "حمّل فيديوهاتك المفضّلة بسهولة"
             textSize = 15f
             gravity = Gravity.CENTER
-            setTextColor(0xFF475569.toInt())
-            setPadding(0, 0, 0, 24)
+            setTextColor(0xFFE7E9FF.toInt())
+        })
+        page.addView(hero, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(20) })
+
+        val section = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(18), dp(18), dp(18), dp(18))
+            background = rounded(0xFFFFFFFF.toInt(), 24f, 0xFFE4E9F3.toInt())
+            elevation = dp(4).toFloat()
+        }
+        section.addView(TextView(this).apply {
+            text = "ابدأ التنزيل"
+            textSize = 20f
+            setTextColor(0xFF172554.toInt())
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
+            gravity = Gravity.RIGHT
+            setPadding(0, 0, 0, dp(5))
+        })
+        section.addView(TextView(this).apply {
+            text = "الصق رابط منشور عام من X يحتوي على فيديو"
+            textSize = 13f
+            setTextColor(0xFF64748B.toInt())
+            gravity = Gravity.RIGHT
+            setPadding(0, 0, 0, dp(14))
         })
         link = EditText(this).apply {
-            hint = "ألصق رابط منشور X هنا"
+            hint = "https://x.com/…/status/…"
             setSingleLine(true)
-            textSize = 16f
-            setPadding(14, 12, 14, 12)
-            setBackgroundColor(0xFFFFFFFF.toInt())
+            textSize = 15f
+            setTextColor(0xFF172033.toInt())
+            setHintTextColor(0xFF9AA6B8.toInt())
+            setPadding(dp(14), dp(13), dp(14), dp(13))
+            background = rounded(0xFFF4F7FC.toInt(), 16f, 0xFFDCE5F1.toInt())
         }
-        root.addView(link)
+        section.addView(link, LinearLayout.LayoutParams(-1, dp(54)).apply { bottomMargin = dp(12) })
         extract = Button(this).apply {
-            text = "استخراج الفيديو"
+            text = "⬇   استخراج وتنزيل الفيديو"
             isAllCaps = false
+            textSize = 16f
+            typeface = android.graphics.Typeface.DEFAULT_BOLD
+            setTextColor(android.graphics.Color.WHITE)
+            background = android.graphics.drawable.GradientDrawable(
+                android.graphics.drawable.GradientDrawable.Orientation.LEFT_RIGHT,
+                intArrayOf(0xFF087FCE.toInt(), 0xFF3158D8.toInt())
+            ).apply { cornerRadius = dp(16).toFloat() }
             setOnClickListener { extractVideo() }
         }
-        root.addView(extract)
-        root.addView(Button(this).apply {
-            text = "تشغيل الأيقونة العائمة"
+        section.addView(extract, LinearLayout.LayoutParams(-1, dp(54)).apply { bottomMargin = dp(10) })
+        val floatingButton = Button(this).apply {
+            text = "●   تشغيل الأيقونة العائمة"
             isAllCaps = false
+            textSize = 14f
+            setTextColor(0xFF2453A6.toInt())
+            background = rounded(0xFFEAF2FF.toInt(), 16f)
             setOnClickListener { enableFloating() }
-        })
-        root.addView(Button(this).apply {
-            text = "فتح التنزيلات"
+        }
+        section.addView(floatingButton, LinearLayout.LayoutParams(-1, dp(48)).apply { bottomMargin = dp(8) })
+        section.addView(Button(this).apply {
+            text = "▣   فتح التنزيلات"
             isAllCaps = false
+            textSize = 14f
+            setTextColor(0xFF475569.toInt())
+            background = rounded(0xFFF2F5FA.toInt(), 16f)
             setOnClickListener {
                 try { startActivity(Intent(DownloadManager.ACTION_VIEW_DOWNLOADS)) }
                 catch (_: Exception) { show("افتح الملفات ثم Movies/XVideoDownloader") }
             }
-        })
+        }, LinearLayout.LayoutParams(-1, dp(46)))
+        page.addView(section, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(16) })
+
         status = TextView(this).apply {
-            text = "ألصق رابط منشور عام يحتوي على فيديو."
+            text = "جاهز! ألصق رابط فيديو من X للبدء."
             textSize = 14f
-            setTextColor(0xFF334155.toInt())
-            setPadding(4, 24, 4, 12)
+            setTextColor(0xFF23416D.toInt())
+            gravity = Gravity.CENTER
+            setPadding(dp(16), dp(14), dp(16), dp(14))
+            background = rounded(0xFFE7F5EF.toInt(), 18f)
         }
-        root.addView(status)
-        root.addView(TextView(this).apply {
-            text = "ملاحظة: المنشورات الخاصة أو المحذوفة قد لا تعمل."
+        page.addView(status, LinearLayout.LayoutParams(-1, -2).apply { bottomMargin = dp(12) })
+        page.addView(TextView(this).apply {
+            text = "ملاحظة: يجب أن يكون المنشور عاماً. قد تمنع قيود X تنزيل بعض الفيديوهات."
             textSize = 12f
-            setTextColor(0xFF64748B.toInt())
+            gravity = Gravity.CENTER
+            setTextColor(0xFF718096.toInt())
+            setPadding(dp(8), dp(4), dp(8), dp(8))
         })
-        setContentView(ScrollView(this).apply { addView(root) })
+        setContentView(ScrollView(this).apply {
+            isFillViewport = true
+            setBackgroundColor(0xFFF7F8FC.toInt())
+            addView(page)
+        })
         receiveShare(intent)
         // Start the floating bubble automatically; Android will ask for overlay permission once.
         enableFloating()
