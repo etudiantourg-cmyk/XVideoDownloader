@@ -9,8 +9,8 @@ android {
         applicationId = "com.example.xvideodownloader"
         minSdk = 23
         targetSdk = 32
-        versionCode = 7
-        versionName = "1.1.4"
+        versionCode = 8
+        versionName = "1.1.5"
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
