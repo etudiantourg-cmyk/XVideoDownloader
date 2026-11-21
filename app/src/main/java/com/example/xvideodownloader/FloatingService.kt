@@ -37,7 +37,13 @@ class FloatingService : Service() {
     private var bubble: View? = null
     private var trashTarget: View? = null
     private val mainHandler = Handler(Looper.getMainLooper())
-    private var panel: PopupWindow? = null
+    private var panel: PopupWindow? = null // retained for binary compatibility; overlay now uses one WindowManager view
+    private var overlayParams: WindowManager.LayoutParams? = null
+    private var bubbleButton: TextView? = null
+    private var linkInput: EditText? = null
+    private var statusMessage: TextView? = null
+    private var isPanelOpen = false
+    @Volatile private var isDownloading = false
 
     override fun onCreate() {
         super.onCreate()
@@ -80,6 +86,7 @@ class FloatingService : Service() {
 
     private fun showBubble() {
         if (bubble != null) return
+        val density = resources.displayMetrics.density
         val button = TextView(this).apply {
             text = "⬇"
             textSize = 29f
@@ -88,20 +95,25 @@ class FloatingService : Service() {
             background = GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
                 setColor(0xFF0788C8.toInt())
-                setStroke((2 * resources.displayMetrics.density).toInt(), Color.WHITE)
+                setStroke((2 * density).toInt(), Color.WHITE)
             }
             elevation = 14f
             contentDescription = "افتح شريط رابط التنزيل"
         }
-        val bubbleSize = (56 * resources.displayMetrics.density).toInt()
+        val root = android.widget.FrameLayout(this).apply {
+            setBackgroundColor(Color.TRANSPARENT)
+            addView(button, android.widget.FrameLayout.LayoutParams(
+                (56 * density).toInt(), (56 * density).toInt(), Gravity.START or Gravity.TOP
+            ))
+        }
         val params = WindowManager.LayoutParams(
-            bubbleSize, bubbleSize, overlayType(),
+            (56 * density).toInt(), (56 * density).toInt(), overlayType(),
             WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE,
             PixelFormat.TRANSLUCENT
         ).apply {
             gravity = Gravity.TOP or Gravity.START
-            x = (8 * resources.displayMetrics.density).toInt()
-            y = 230
+            x = (8 * density).toInt()
+            y = (230 * density).toInt()
         }
         button.setOnTouchListener(object : View.OnTouchListener {
             var startX = 0f
@@ -112,18 +124,20 @@ class FloatingService : Service() {
             override fun onTouch(view: View, event: MotionEvent): Boolean {
                 when (event.action) {
                     MotionEvent.ACTION_DOWN -> {
-                        startX = event.rawX; startY = event.rawY
-                        originalX = params.x; originalY = params.y
+                        startX = event.rawX
+                        startY = event.rawY
+                        originalX = params.x
+                        originalY = params.y
                         dragged = false
                         return true
                     }
                     MotionEvent.ACTION_MOVE -> {
                         val dx = (event.rawX - startX).toInt()
                         val dy = (event.rawY - startY).toInt()
-                        if (kotlin.math.abs(dx) + kotlin.math.abs(dy) > 10) dragged = true
+                        if (kotlin.math.abs(dx) + kotlin.math.abs(dy) > (8 * density).toInt()) dragged = true
                         params.x = (originalX + dx).coerceAtLeast(0)
                         params.y = (originalY + dy).coerceAtLeast(0)
-                        try { windowManager.updateViewLayout(button, params) } catch (_: Exception) {}
+                        try { windowManager.updateViewLayout(root, params) } catch (_: Exception) {}
                         if (dragged) showTrashTarget()
                         return true
                     }
@@ -132,8 +146,12 @@ class FloatingService : Service() {
                             removeBubbleByDrop()
                         } else {
                             hideTrashTarget()
-                            if (!dragged) onBubbleTapped()
+                            if (!dragged) showPanel()
                         }
+                        return true
+                    }
+                    MotionEvent.ACTION_CANCEL -> {
+                        hideTrashTarget()
                         return true
                     }
                 }
@@ -141,8 +159,10 @@ class FloatingService : Service() {
             }
         })
         try {
-            windowManager.addView(button, params)
-            bubble = button
+            windowManager.addView(root, params)
+            bubble = root
+            overlayParams = params
+            bubbleButton = button
         } catch (_: Exception) {
             bubble = null
             Toast.makeText(this, "تعذر إنشاء الأيقونة العائمة. تحقق من إذن الظهور فوق التطبيقات.", Toast.LENGTH_LONG).show()
@@ -191,8 +211,10 @@ class FloatingService : Service() {
 
     private fun removeBubbleByDrop() {
         hideTrashTarget()
-        // Keep the original overlay attached: PopupWindow needs a valid window token.
-        bubble?.visibility = View.INVISIBLE
+        bubble?.let { try { windowManager.removeView(it) } catch (_: Exception) {} }
+        bubble = null
+        bubbleButton = null
+        overlayParams = null
         Toast.makeText(this, "تم إخفاء الزر العائم. يمكنك تشغيله مجدداً من التطبيق.", Toast.LENGTH_LONG).show()
         stopSelf()
     }
@@ -202,18 +224,18 @@ class FloatingService : Service() {
     }
 
     private fun showPanel() {
-        if (panel?.isShowing == true) return
+        if (isPanelOpen) return
+        val root = bubble as? android.widget.FrameLayout ?: return
+        val params = overlayParams ?: return
         val density = resources.displayMetrics.density
-        // Keep the floating button visible while the link panel is open.
-        // Hiding it here made the launcher appear to vanish when PopupWindow failed to render.
         val row = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
-            setPadding((10 * density).toInt(), (7 * density).toInt(), (8 * density).toInt(), (7 * density).toInt())
+            setPadding((8 * density).toInt(), (6 * density).toInt(), (10 * density).toInt(), (6 * density).toInt())
             background = GradientDrawable().apply {
                 setColor(Color.WHITE)
-                cornerRadius = 36f * density
-                setStroke((1 * density).toInt(), 0xFFE2E8F0.toInt())
+                cornerRadius = 28f * density
+                setStroke((1 * density).toInt(), 0xFFD7DEE8.toInt())
             }
             elevation = 16f
         }
@@ -230,8 +252,6 @@ class FloatingService : Service() {
             elevation = 8f
             contentDescription = "اضغط لتنزيل الفيديو"
         }
-        val bubbleSize = (48 * density).toInt()
-        row.addView(downloadButton, LinearLayout.LayoutParams(bubbleSize, bubbleSize))
         val input = EditText(this).apply {
             hint = "ألصق رابط منشور X هنا"
             setSingleLine(true)
@@ -245,16 +265,15 @@ class FloatingService : Service() {
             setPadding((12 * density).toInt(), 0, (8 * density).toInt(), 0)
             background = null
             imeOptions = android.view.inputmethod.EditorInfo.IME_ACTION_GO
-            val clipboard = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
             try {
-                if (clipboard.hasPrimaryClip()) {
-                    val value = clipboard.primaryClip?.getItemAt(0)?.coerceToText(this@FloatingService)?.toString().orEmpty()
-                    if (value.contains("x.com/") || value.contains("twitter.com/")) setText(value.trim())
-                }
+                val clipboard = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
+                val copied = if (clipboard.hasPrimaryClip()) clipboard.primaryClip?.getItemAt(0)?.coerceToText(this@FloatingService)?.toString().orEmpty() else ""
+                if (copied.contains("x.com/") || copied.contains("twitter.com/")) setText(copied.trim())
             } catch (_: Exception) {}
         }
+        row.addView(downloadButton, LinearLayout.LayoutParams((48 * density).toInt(), (48 * density).toInt()))
         row.addView(input, LinearLayout.LayoutParams(0, (54 * density).toInt(), 1f))
-        val hint = TextView(this).apply {
+        val message = TextView(this).apply {
             text = "الصق رابط منشور X ثم اضغط السهم للتنزيل"
             textSize = 12f
             setTextColor(0xFF64748B.toInt())
@@ -263,56 +282,77 @@ class FloatingService : Service() {
         }
         val content = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding((8 * density).toInt(), (8 * density).toInt(), (8 * density).toInt(), (4 * density).toInt())
+            setPadding((4 * density).toInt(), (4 * density).toInt(), (4 * density).toInt(), (4 * density).toInt())
             addView(row)
-            addView(hint)
+            addView(message)
         }
-        val width = resources.displayMetrics.widthPixels - (16 * density).toInt()
-        panel = PopupWindow(content, width, WindowManager.LayoutParams.WRAP_CONTENT, true).apply {
-            isOutsideTouchable = true
-            setBackgroundDrawable(GradientDrawable().apply { setColor(Color.TRANSPARENT) })
-            elevation = 18f
-            inputMethodMode = PopupWindow.INPUT_METHOD_NEEDED
-            softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
-            setOnDismissListener {
-                panel = null
-                bubble?.visibility = View.VISIBLE
+        root.removeAllViews()
+        root.addView(content, android.widget.FrameLayout.LayoutParams(
+            resources.displayMetrics.widthPixels - (16 * density).toInt(),
+            android.widget.FrameLayout.LayoutParams.WRAP_CONTENT,
+            Gravity.TOP or Gravity.START
+        ))
+        params.width = resources.displayMetrics.widthPixels - (16 * density).toInt()
+        params.height = android.widget.FrameLayout.LayoutParams.WRAP_CONTENT
+        params.flags = WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or WindowManager.LayoutParams.FLAG_WATCH_OUTSIDE_TOUCH
+        params.gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
+        params.x = 0
+        params.y = (resources.displayMetrics.heightPixels * 0.48f).toInt()
+        params.softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+        try {
+            windowManager.updateViewLayout(root, params)
+            isPanelOpen = true
+            linkInput = input
+            statusMessage = message
+            root.setOnTouchListener { _, event ->
+                if (event.action == MotionEvent.ACTION_OUTSIDE) {
+                    closePanel()
+                    true
+                } else false
             }
+        } catch (_: Exception) {
+            closePanel()
+            Toast.makeText(this, "تعذر فتح شريط الرابط. أعد المحاولة.", Toast.LENGTH_LONG).show()
+            return
         }
         val startDownload = {
             val postId = extractStatusId(input.text.toString().trim())
             if (postId == null) {
-                hint.text = "الرابط غير صحيح. ألصق رابط منشور من X يحتوي على فيديو."
-            } else {
+                message.text = "الرابط غير صحيح. ألصق رابط منشور X يحتوي على فيديو."
+            } else if (!isDownloading) {
+                isDownloading = true
                 downloadButton.isEnabled = false
                 downloadButton.alpha = 0.55f
-                hint.text = "جارٍ استخراج الفيديو..."
+                message.text = "جارٍ استخراج الفيديو..."
                 resolveVideo(postId) { result ->
                     when (result) {
                         is ResolveResult.Error -> {
-                            hint.text = result.message
+                            message.text = result.message
+                            isDownloading = false
                             downloadButton.isEnabled = true
                             downloadButton.alpha = 1f
                         }
                         is ResolveResult.Success -> {
                             val best = result.formats.maxWithOrNull(compareBy<VideoFormat> { it.height }.thenBy { it.bitrate })
                             if (best == null) {
-                                hint.text = "لم نعثر على جودة قابلة للتنزيل."
+                                message.text = "لم نعثر على جودة قابلة للتنزيل."
+                                isDownloading = false
                                 downloadButton.isEnabled = true
                                 downloadButton.alpha = 1f
                             } else {
-                                hint.text = "جارٍ تنزيل الفيديو بأفضل جودة (${best.height}p)..."
+                                message.text = "جارٍ تنزيل الفيديو بأفضل جودة (${best.height}p)..."
                                 VideoFileDownloader.download(
                                     this,
                                     best.url,
                                     "X_${postId}_${best.height}p.mp4",
                                     "https://x.com/i/status/$postId"
-                                ) { success, message ->
+                                ) { success, resultMessage ->
                                     mainHandler.post {
-                                        hint.text = message
+                                        message.text = resultMessage
+                                        isDownloading = false
                                         downloadButton.isEnabled = true
                                         downloadButton.alpha = 1f
-                                        if (success) Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+                                        if (success) Toast.makeText(this, resultMessage, Toast.LENGTH_LONG).show()
                                     }
                                 }
                             }
@@ -329,27 +369,36 @@ class FloatingService : Service() {
                 true
             } else false
         }
-        val attachedAnchor = bubble
-        if (attachedAnchor == null || !attachedAnchor.isAttachedToWindow) {
-            panel = null
-            showBubble()
-            return
-        }
-        try {
-            panel?.showAtLocation(attachedAnchor, Gravity.TOP or Gravity.START, (8 * density).toInt(), (resources.displayMetrics.heightPixels * 0.62f).toInt())
-            if (panel?.isShowing != true) throw IllegalStateException("PopupWindow did not attach")
-            attachedAnchor.visibility = View.INVISIBLE
-        } catch (e: Exception) {
-            panel = null
-            attachedAnchor.visibility = View.VISIBLE
-            Toast.makeText(this, "تعذر إظهار شريط الرابط. أعد الضغط على الأيقونة.", Toast.LENGTH_LONG).show()
-            return
-        }
         input.requestFocus()
         input.post {
             val imm = getSystemService(INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
             imm.showSoftInput(input, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
         }
+    }
+
+    private fun closePanel() {
+        val root = bubble as? android.widget.FrameLayout ?: return
+        val params = overlayParams ?: return
+        try {
+            val button = bubbleButton ?: return
+            root.setOnTouchListener(null)
+            root.removeAllViews()
+            root.addView(button, android.widget.FrameLayout.LayoutParams(
+                (56 * resources.displayMetrics.density).toInt(),
+                (56 * resources.displayMetrics.density).toInt(),
+                Gravity.START or Gravity.TOP
+            ))
+            params.width = (56 * resources.displayMetrics.density).toInt()
+            params.height = (56 * resources.displayMetrics.density).toInt()
+            params.flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+            params.gravity = Gravity.TOP or Gravity.START
+            params.x = params.x.coerceAtLeast(0)
+            params.softInputMode = WindowManager.LayoutParams.SOFT_INPUT_STATE_ALWAYS_HIDDEN
+            windowManager.updateViewLayout(root, params)
+        } catch (_: Exception) {}
+        isPanelOpen = false
+        linkInput = null
+        statusMessage = null
     }
 
     private fun extractStatusId(value: String): String? {
@@ -475,6 +524,8 @@ class FloatingService : Service() {
         hideTrashTarget()
         bubble?.let { try { windowManager.removeView(it) } catch (_: Exception) {} }
         bubble = null
+        bubbleButton = null
+        overlayParams = null
         super.onDestroy()
     }
 
