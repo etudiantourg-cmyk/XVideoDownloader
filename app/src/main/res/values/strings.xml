@@ -1,0 +1,4 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="x_accessibility_description">يقرأ النصوص الظاهرة في تطبيق X فقط لاستخراج رابط المنشور عند ضغطك على الزر العائم. لا يلتقط الشاشة ولا يرسل محتواها.</string>
+</resources>
