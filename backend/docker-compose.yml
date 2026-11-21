@@ -4,16 +4,19 @@ services:
     init: true
     read_only: true
     restart: unless-stopped
-    container_name: universal-video-engine
+    container_name: cobalt
     ports:
+      # Keep the API private; expose it only through a TLS reverse proxy.
       - "127.0.0.1:9000:9000"
-    env_file:
-      - .env
     environment:
-      API_URL: ${API_URL}
-      API_AUTH_REQUIRED: "1"
-      API_KEY_URL: "file:///keys.json"
+      # Must be the final public HTTPS URL; Cobalt uses it to build tunnel URLs.
+      API_URL: "${API_URL}"
+    labels:
+      - com.centurylinklabs.watchtower.scope=cobalt
+
+  watchtower:
+    image: ghcr.io/containrrr/watchtower
+    restart: unless-stopped
+    command: --cleanup --scope cobalt --interval 900 --include-restarting
     volumes:
-      - ./keys.json:/keys.json:ro
-    security_opt:
-      - no-new-privileges:true
+      - /var/run/docker.sock:/var/run/docker.sock
