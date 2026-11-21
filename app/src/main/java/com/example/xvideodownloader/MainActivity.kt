@@ -63,6 +63,14 @@ class MainActivity : Activity() {
             setOnClickListener { enableFloating() }
         })
         root.addView(Button(this).apply {
+            text = "تفعيل التعرف التلقائي على روابط X"
+            isAllCaps = false
+            setOnClickListener {
+                startActivity(Intent(android.provider.Settings.ACTION_ACCESSIBILITY_SETTINGS))
+                Toast.makeText(this@MainActivity, "اختر X Video Downloader من الخدمات ثم فعّلها.", Toast.LENGTH_LONG).show()
+            }
+        })
+        root.addView(Button(this).apply {
             text = "فتح التنزيلات"
             isAllCaps = false
             setOnClickListener {
