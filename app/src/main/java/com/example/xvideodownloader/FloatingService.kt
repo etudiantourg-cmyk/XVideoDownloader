@@ -191,113 +191,137 @@ class FloatingService : Service() {
         Toast.makeText(this, "تم إخفاء الزر العائم. يمكنك تشغيله مجدداً من التطبيق.", Toast.LENGTH_LONG).show()
         stopSelf()
     }
-    /** One-tap flow: copy the X post link using Share > Copy link, then tap the floating button. */
+    /** Tap the floating bubble to open the link bar. */
     private fun onBubbleTapped() {
-        val clipboard = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
-        val copiedText = try {
-            if (clipboard.hasPrimaryClip()) clipboard.primaryClip?.getItemAt(0)?.coerceToText(this)?.toString().orEmpty() else ""
-        } catch (_: Exception) { "" }
-        val postId = extractStatusId(copiedText)
-        if (postId == null) {
-            Toast.makeText(this, "في X اختر مشاركة المنشور ثم نسخ الرابط، وبعدها اضغط زر التنزيل.", Toast.LENGTH_LONG).show()
+        if (panel?.isShowing == true) {
+            panel?.dismiss()
+        } else {
             showPanel()
-            return
         }
-        Toast.makeText(this, "جارٍ استخراج الفيديو...", Toast.LENGTH_SHORT).show()
-        resolveVideo(postId) { result ->
-            when (result) {
-                is ResolveResult.Error -> Toast.makeText(this, result.message, Toast.LENGTH_LONG).show()
-                is ResolveResult.Success -> {
-                    val best = result.formats.maxWithOrNull(compareBy<VideoFormat> { it.height }.thenBy { it.bitrate })
-                    if (best == null) {
-                        Toast.makeText(this, "لم نعثر على جودة قابلة للتنزيل.", Toast.LENGTH_LONG).show()
-                    } else {
-                        Toast.makeText(this, "بدء تنزيل ${best.height}p...", Toast.LENGTH_SHORT).show()
-                        VideoFileDownloader.download(this, best.url, "X_${postId}_${best.height}p.mp4", "https://x.com/i/status/$postId") { success, message ->
-                            mainHandler.post { Toast.makeText(this, message, Toast.LENGTH_LONG).show() }
+    }
+    private fun showPanel() {
+        if (panel?.isShowing == true) return
+        val density = resources.displayMetrics.density
+        val row = LinearLayout(this).apply {
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            setPadding((10 * density).toInt(), (7 * density).toInt(), (8 * density).toInt(), (7 * density).toInt())
+            background = GradientDrawable().apply {
+                setColor(Color.WHITE)
+                cornerRadius = 36f * density
+                setStroke((1 * density).toInt(), 0xFFE2E8F0.toInt())
+            }
+            elevation = 16f
+        }
+        val input = EditText(this).apply {
+            hint = "ألصق رابط منشور X هنا"
+            setSingleLine(true)
+            textSize = 16f
+            setTextColor(0xFF111827.toInt())
+            setHintTextColor(0xFF94A3B8.toInt())
+            setPadding((12 * density).toInt(), 0, (8 * density).toInt(), 0)
+            background = null
+            imeOptions = android.view.inputmethod.EditorInfo.IME_ACTION_GO
+            val clipboard = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
+            try {
+                if (clipboard.hasPrimaryClip()) {
+                    val value = clipboard.primaryClip?.getItemAt(0)?.coerceToText(this@FloatingService)?.toString().orEmpty()
+                    if (value.contains("x.com/") || value.contains("twitter.com/")) setText(value.trim())
+                }
+            } catch (_: Exception) {}
+        }
+        val send = TextView(this).apply {
+            text = "➜"
+            textSize = 27f
+            gravity = Gravity.CENTER
+            setTextColor(Color.WHITE)
+            background = GradientDrawable().apply {
+                shape = GradientDrawable.OVAL
+                setColor(0xFF1685E5.toInt())
+            }
+            elevation = 5f
+            contentDescription = "تنزيل الفيديو"
+        }
+        val size = (54 * density).toInt()
+        row.addView(input, LinearLayout.LayoutParams(0, (54 * density).toInt(), 1f))
+        row.addView(send, LinearLayout.LayoutParams(size, size))
+        val hint = TextView(this).apply {
+            text = "الصق رابط منشور X ثم اضغط السهم للتنزيل"
+            textSize = 12f
+            setTextColor(0xFF64748B.toInt())
+            gravity = Gravity.CENTER
+            setPadding(0, (5 * density).toInt(), 0, 0)
+        }
+        val content = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding((8 * density).toInt(), (8 * density).toInt(), (8 * density).toInt(), (4 * density).toInt())
+            addView(row)
+            addView(hint)
+        }
+        val width = (resources.displayMetrics.widthPixels * 0.94f).toInt()
+        panel = PopupWindow(content, width, WindowManager.LayoutParams.WRAP_CONTENT, true).apply {
+            isOutsideTouchable = true
+            setBackgroundDrawable(GradientDrawable().apply { setColor(Color.TRANSPARENT) })
+            elevation = 18f
+            inputMethodMode = PopupWindow.INPUT_METHOD_NEEDED
+            softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
+        }
+        val startDownload = {
+            val postId = extractStatusId(input.text.toString().trim())
+            if (postId == null) {
+                hint.text = "الرابط غير صحيح. ألصق رابط منشور من X يحتوي على فيديو."
+            } else {
+                send.isEnabled = false
+                send.alpha = 0.55f
+                hint.text = "جارٍ استخراج الفيديو..."
+                resolveVideo(postId) { result ->
+                    when (result) {
+                        is ResolveResult.Error -> {
+                            hint.text = result.message
+                            send.isEnabled = true
+                            send.alpha = 1f
+                        }
+                        is ResolveResult.Success -> {
+                            val best = result.formats.maxWithOrNull(compareBy<VideoFormat> { it.height }.thenBy { it.bitrate })
+                            if (best == null) {
+                                hint.text = "لم نعثر على جودة قابلة للتنزيل."
+                                send.isEnabled = true
+                                send.alpha = 1f
+                            } else {
+                                hint.text = "جارٍ تنزيل الفيديو بأفضل جودة (${best.height}p)..."
+                                VideoFileDownloader.download(
+                                    this,
+                                    best.url,
+                                    "X_${postId}_${best.height}p.mp4",
+                                    "https://x.com/i/status/$postId"
+                                ) { success, message ->
+                                    mainHandler.post {
+                                        hint.text = message
+                                        send.isEnabled = true
+                                        send.alpha = 1f
+                                        if (success) Toast.makeText(this, message, Toast.LENGTH_LONG).show()
+                                    }
+                                }
+                            }
                         }
                     }
                 }
             }
         }
-    }
-    private fun showPanel() {
-        if (panel?.isShowing == true) return
-        val box = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(24, 22, 24, 18)
-            background = GradientDrawable().apply {
-                setColor(Color.WHITE)
-                cornerRadius = 28f
-                setStroke(2, 0xFFE2E8F0.toInt())
-            }
+        send.setOnClickListener { startDownload() }
+        input.setOnEditorActionListener { _, actionId, _ ->
+            if (actionId == android.view.inputmethod.EditorInfo.IME_ACTION_GO ||
+                actionId == android.view.inputmethod.EditorInfo.IME_ACTION_DONE) {
+                startDownload()
+                true
+            } else false
         }
-        val title = TextView(this).apply {
-            text = "تنزيل فيديو من X"
-            textSize = 21f
-            setTextColor(0xFF111827.toInt())
-            setPadding(0, 0, 0, 10)
+        panel?.showAtLocation(bubble ?: content, Gravity.BOTTOM or Gravity.CENTER_HORIZONTAL, 0, (24 * density).toInt())
+        input.requestFocus()
+        input.post {
+            val imm = getSystemService(INPUT_METHOD_SERVICE) as android.view.inputmethod.InputMethodManager
+            imm.showSoftInput(input, android.view.inputmethod.InputMethodManager.SHOW_IMPLICIT)
         }
-        val input = EditText(this).apply {
-            hint = "ألصق رابط المنشور هنا"
-            setSingleLine(true)
-            textSize = 14f
-            val clipboard = getSystemService(CLIPBOARD_SERVICE) as ClipboardManager
-            if (clipboard.hasPrimaryClip()) {
-                val value = clipboard.primaryClip?.getItemAt(0)?.coerceToText(this@FloatingService)?.toString().orEmpty()
-                if (value.contains("x.com/") || value.contains("twitter.com/")) setText(value.trim())
-            }
-        }
-        val message = TextView(this).apply {
-            text = "انسخ رابط منشور عام يحتوي على فيديو."
-            textSize = 13f
-            setTextColor(0xFF475569.toInt())
-            setPadding(0, 10, 0, 8)
-        }
-        val download = Button(this).apply { text = "استخراج الفيديو وتنزيله" }
-        val history = Button(this).apply { text = "فتح مجلد التنزيلات" }
-        val close = Button(this).apply { text = "إغلاق" }
-        box.addView(title)
-        box.addView(input)
-        box.addView(message)
-        box.addView(download)
-        box.addView(history)
-        box.addView(close)
-        val width = (resources.displayMetrics.widthPixels * 0.88f).toInt()
-        panel = PopupWindow(box, width, WindowManager.LayoutParams.WRAP_CONTENT, true).apply {
-            isOutsideTouchable = true
-            setBackgroundDrawable(GradientDrawable().apply { setColor(Color.TRANSPARENT) })
-            elevation = 18f
-        }
-        download.setOnClickListener {
-            val postUrl = input.text.toString().trim()
-            val postId = extractStatusId(postUrl)
-            if (postId == null) {
-                message.text = "الرابط غير صحيح. استخدم رابط منشور من x.com أو twitter.com."
-                return@setOnClickListener
-            }
-            download.isEnabled = false
-            download.text = "جارٍ البحث عن الفيديو..."
-            message.text = "نتصل بمصدر بيانات المنشور..."
-            resolveVideo(postId) { result ->
-                download.isEnabled = true
-                download.text = "استخراج الفيديو وتنزيله"
-                when (result) {
-                    is ResolveResult.Error -> message.text = result.message
-                    is ResolveResult.Success -> showQualityPicker(result.formats, postId, message, download)
-                }
-            }
-        }
-        history.setOnClickListener {
-            try {
-                val intent = Intent(DownloadManager.ACTION_VIEW_DOWNLOADS).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
-                startActivity(intent)
-            } catch (_: Exception) {
-                message.text = "افتح تطبيق الملفات ثم مجلد Movies/XVideoDownloader."
-            }
-        }
-        close.setOnClickListener { panel?.dismiss() }
-        panel?.showAtLocation(bubble ?: box, Gravity.CENTER, 0, 0)
     }
 
     private fun extractStatusId(value: String): String? {
