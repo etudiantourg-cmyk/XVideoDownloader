@@ -24,6 +24,7 @@ import android.view.WindowManager
 import android.widget.Button
 import android.widget.EditText
 import android.widget.LinearLayout
+import android.widget.ImageView
 import android.widget.PopupWindow
 import android.widget.TextView
 import android.widget.Toast
@@ -80,16 +81,12 @@ class FloatingService : Service() {
 
     private fun showBubble() {
         if (bubble != null) return
-        val button = TextView(this).apply {
-            text = "⬇"
-            textSize = 20f
-            setTextColor(Color.WHITE)
-            gravity = Gravity.CENTER
-            background = GradientDrawable().apply {
-                shape = GradientDrawable.OVAL
-                setColor(0xFF0284C7.toInt())
-                setStroke(3, Color.WHITE)
-            }
+        // Use the requested X + yellow download mark for the floating bubble.
+        // The launcher icon in the manifest does not automatically style overlay views.
+        val button = ImageView(this).apply {
+            setImageResource(R.drawable.ic_floating_logo)
+            scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
+            setBackgroundColor(Color.TRANSPARENT)
             elevation = 14f
             contentDescription = "اضغط لتنزيل فيديو X"
         }
