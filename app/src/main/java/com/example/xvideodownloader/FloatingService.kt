@@ -140,8 +140,13 @@ class FloatingService : Service() {
                 return false
             }
         })
-        bubble = button
-        windowManager.addView(button, params)
+        try {
+            windowManager.addView(button, params)
+            bubble = button
+        } catch (_: Exception) {
+            bubble = null
+            Toast.makeText(this, "تعذر إنشاء الأيقونة العائمة. تحقق من إذن الظهور فوق التطبيقات.", Toast.LENGTH_LONG).show()
+        }
     }
 
     /** Display a trash target while dragging the floating button. */
@@ -199,8 +204,8 @@ class FloatingService : Service() {
     private fun showPanel() {
         if (panel?.isShowing == true) return
         val density = resources.displayMetrics.density
-        // Keep the overlay attached as a valid PopupWindow anchor.
-        bubble?.visibility = View.INVISIBLE
+        // Keep the floating button visible while the link panel is open.
+        // Hiding it here made the launcher appear to vanish when PopupWindow failed to render.
         val row = LinearLayout(this).apply {
             orientation = LinearLayout.HORIZONTAL
             gravity = Gravity.CENTER_VERTICAL
@@ -347,6 +352,7 @@ class FloatingService : Service() {
         }
         try {
             panel?.showAtLocation(attachedAnchor, Gravity.TOP or Gravity.START, (8 * density).toInt(), (resources.displayMetrics.heightPixels * 0.62f).toInt())
+            if (panel?.isShowing != true) throw IllegalStateException("PopupWindow did not attach")
         } catch (e: Exception) {
             panel = null
             attachedAnchor.visibility = View.VISIBLE
