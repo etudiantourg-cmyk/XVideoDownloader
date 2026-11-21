@@ -1,29 +1,37 @@
 # Universal Video Downloader backend
 
-This directory contains a self-hosted Cobalt API deployment for the Android app.
-Cobalt supports a broad, explicit list of services; it does **not** promise every
-URL on the internet. Public/private access restrictions and DRM remain limitations.
+This folder contains a Cobalt self-hosting template based on the upstream
+deployment guide. It is **not deployed** and the Android app is not yet connected
+to a live instance.
 
-## Deploy
+## What this engine can support
 
-1. Provision a Linux VPS with Docker Engine and the Docker Compose plugin.
-2. Copy this directory to the server.
-3. Copy `.env.example` to `.env` and set `API_URL` to the final HTTPS API origin.
-4. Copy `keys.example.json` to `keys.json` and replace the example API key with a
-   long random secret. Never commit real keys or `.env` to Git.
-5. Put a TLS reverse proxy (for example Caddy or Nginx) in front of port 9000.
-   Do not expose port 9000 directly to the public internet.
-6. Run `docker compose up -d`.
-7. Verify `https://YOUR-HOST/` returns Cobalt instance information.
-
-The Android client must then be configured with this HTTPS endpoint and the same
-API key. Do not put a production API key in a public repository or share it in chat.
-
-## Supported services
-
-See the upstream maintained list:
+The upstream Cobalt project currently lists services including Instagram,
+public Facebook videos, Twitter/X, TikTok, Reddit, Vimeo and YouTube, among
+others. Its maintained support matrix and service-specific limitations are here:
 https://github.com/imputnet/cobalt/blob/main/api/README.md
 
-This is a backend deployment kit, not a claim that the backend has already been
-deployed. A reachable VPS/domain and its secret configuration are required before
-the Android app can use it.
+It cannot guarantee every URL on the internet. DRM, private posts, login walls,
+geo-blocks, expired links and site-side changes can prevent downloads.
+
+## Deployment requirements
+
+You need an always-on Linux host that can run Docker Compose, a public domain,
+and HTTPS via a reverse proxy. A Cloudflare Worker alone cannot run this Docker
+service. Do not expose port 9000 directly to the public internet.
+
+1. Copy `.env.example` to `.env` and set `API_URL` to the final public HTTPS URL.
+2. Configure a TLS reverse proxy to forward to `127.0.0.1:9000`.
+3. Run `docker compose up -d`.
+4. Check the instance root URL and test a POST request according to the upstream API docs.
+5. Configure the Android client with the deployed HTTPS endpoint.
+
+The upstream currently documents API-key authentication as an optional
+protection for public instances. Enable it only after following its current
+key-file format and protection guide; never commit real keys or cookies.
+
+## Upstream references
+
+- API: https://github.com/imputnet/cobalt/blob/main/docs/api.md
+- Deployment: https://github.com/imputnet/cobalt/blob/main/docs/run-an-instance.md
+- Environment variables: https://github.com/imputnet/cobalt/blob/main/docs/api-env-variables.md
